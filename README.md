@@ -94,25 +94,15 @@ Welcome to the most wonderfully mad way to track your subscriptions! This applic
 Create a ```.env``` file based on ```.env.example```:
 
 | Variable | Description | Default |
-
 |----------|-------------|---------|
-
 | ```SECRET_KEY``` | Flask secret key for sessions | Random string |
-
 | ```DATABASE_URL``` | Database connection string | SQLite (local file) |
-
 | ```MAIL_SERVER``` | SMTP server address | None |
-
 | ```MAIL_PORT``` | SMTP server port | 587 |
-
 | ```MAIL_USE_TLS``` | Enable TLS for email | true |
-
 | ```MAIL_USERNAME``` | SMTP username | None |
-
 | ```MAIL_PASSWORD``` | SMTP password | None |
-
 | ```MAIL_FROM``` | From email address | None |
-
 | ```DAYS_BEFORE_EXPIRY``` | Days before expiry to send notification | 7 |
 
 ### Email Configuration Example (Gmail)
