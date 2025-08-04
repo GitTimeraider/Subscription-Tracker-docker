@@ -1,2 +1,2 @@
 # subscription-tracker
-Tracks subscriptions
+UNDER DEVELOPMENT!
