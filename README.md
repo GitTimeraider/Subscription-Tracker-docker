@@ -26,25 +26,24 @@ Welcome to the most wonderfully mad way to track your subscriptions! This applic
 
 ### Using Docker (Recommended)
 
-1\. **Pull the image from GitHub Container Registry:**
+1. **Pull the image from GitHub Container Registry:**
 
-   ```bash
+```bash
 
    docker pull ghcr.io/YOUR_USERNAME/subscription-tracker:main
+```
 
-   ```
+2. **Run with docker-compose:**
 
-2\. **Run with docker-compose:**
-
-   ```bash
+```bash
 
    # Create a docker-compose.yml file with your environment variables
 
    docker-compose up -d
 
-   ```
+```
 
-3\. **Access the application:**
+3. **Access the application:**
 
    - Navigate to ```http://localhost:5000```
 
@@ -52,41 +51,41 @@ Welcome to the most wonderfully mad way to track your subscriptions! This applic
 
 ### Local Development
 
-1\. **Clone the repository:**
+1. **Clone the repository:**
 
-   ```bash
+```bash
 
    git clone https://github.com/YOUR_USERNAME/subscription-tracker.git
 
    cd subscription-tracker
 
-   ```
+```
 
-2\. **Set up virtual environment:**
+2. **Set up virtual environment:**
 
-   ```bash
+```bash
 
    python -m venv venv
 
    source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-   ```
+```
 
-3\. **Install dependencies:**
+3. **Install dependencies:**
 
-   ```bash
+```bash
 
    pip install -r requirements.txt
 
-   ```
+```
 
-4\. **Run the application:**
+4. **Run the application:**
 
-   ```bash
+```bash
 
    python run.py
 
-   ```
+```
 
 ## Configuration
 
@@ -138,11 +137,11 @@ MAIL_FROM=your-email@gmail.com
 
 ### Adding a Subscription
 
-1\. Log in to the dashboard
+1. Log in to the dashboard
 
-2\. Click "Add Subscription"
+2. Click "Add Subscription"
 
-3\. Fill in the details:
+3. Fill in the details:
 
    - **Name**: Netflix, Spotify, etc.
 
@@ -182,7 +181,7 @@ docker build -t subscription-tracker .
 
 1\. **Create a ```docker-compose.yml``` file:**
 
-   ```yaml
+```yaml
 
    version: '3.8'
 
@@ -218,15 +217,15 @@ docker build -t subscription-tracker .
 
          - ./data:/app/instance
 
-   ```
+```
 
-2\. **Start the application:**
+2. **Start the application:**
 
-   ```bash
+```bash
 
    docker-compose up -d
 
-   ```
+```
 
 ### Using GitHub Container Registry
 
@@ -234,21 +233,21 @@ The repository includes GitHub Actions that automatically build and publish Dock
 
 To use these images:
 
-1\. **Authenticate with GitHub Container Registry:**
+1. **Authenticate with GitHub Container Registry:**
 
-   ```bash
+```bash
 
    echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
-   ```
+```
 
-2\. **Pull the latest image:**
+2. **Pull the latest image:**
 
-   ```bash
+```bash
 
    docker pull ghcr.io/YOUR_USERNAME/subscription-tracker:main
 
-   ```
+```
 
 ## Security Considerations
 
@@ -266,15 +265,15 @@ To use these images:
 
 *Adjusts monocle* Contributions are most welcome at this tea party!
 
-1\. Fork the repository
+1. Fork the repository
 
-2\. Create your feature branch (```git checkout -b feature/AmazingFeature```)
+2. Create your feature branch (```git checkout -b feature/AmazingFeature```)
 
-3\. Commit your changes (```git commit -m 'Add some AmazingFeature'```)
+3. Commit your changes (```git commit -m 'Add some AmazingFeature'```)
 
-4\. Push to the branch (```git push origin feature/AmazingFeature```)
+4. Push to the branch (```git push origin feature/AmazingFeature```)
 
-5\. Open a Pull Request
+5. Open a Pull Request
 
 ## License
 
