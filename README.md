@@ -1,6 +1,10 @@
 
 UNDER DEVELOPMENT! NOT READY FOR USAGE
 
+<p align="center">
+  <img src="img/icon_sub.png" />
+</p>
+
 
 # Subscription Tracker
 
