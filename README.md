@@ -34,7 +34,7 @@ Welcome to the most wonderfully mad way to track your subscriptions! This applic
 
 ```bash
 
-   docker pull ghcr.io/YOUR_USERNAME/subscription-tracker:main
+   docker pull ghcr.io/gittimeraider/subscription-tracker:latest
 ```
 
 2. **Run with docker-compose:**
@@ -59,7 +59,7 @@ Welcome to the most wonderfully mad way to track your subscriptions! This applic
 
 ```bash
 
-   git clone https://github.com/YOUR_USERNAME/subscription-tracker.git
+   git clone https://github.com/gittimeraider/subscription-tracker.git
 
    cd subscription-tracker
 
@@ -183,7 +183,7 @@ docker build -t subscription-tracker .
 
      web:
 
-       image: ghcr.io/YOUR_USERNAME/subscription-tracker:main
+       image: ghcr.io/gittimeraider/subscription-tracker:latest
 
        ports:
 
@@ -218,28 +218,6 @@ docker build -t subscription-tracker .
 ```bash
 
    docker-compose up -d
-
-```
-
-### Using GitHub Container Registry
-
-The repository includes GitHub Actions that automatically build and publish Docker images to ghcr.io on every push to the main branch.
-
-To use these images:
-
-1. **Authenticate with GitHub Container Registry:**
-
-```bash
-
-   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
-
-```
-
-2. **Pull the latest image:**
-
-```bash
-
-   docker pull ghcr.io/YOUR_USERNAME/subscription-tracker:main
 
 ```
 
