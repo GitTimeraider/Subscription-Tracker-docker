@@ -1,9 +1,31 @@
 # subscription-tracker
 UNDER DEVELOPMENT! NOT READY FOR USAGE
 
+<details><summary>Thinking</summary>
+
+The user wants a README.md file for the subscription tracker project. I need to be careful with code blocks to ensure they don't break the markdown formatting. I should create a comprehensive README that includes:
+
+- Project description
+
+- Features
+
+- Installation instructions
+
+- Configuration
+
+- Usage
+
+- Docker deployment
+
+- Contributing guidelines
+
+I need to make sure all code blocks are properly closed and the markdown formatting is correct throughout.
+
+</details>
+
 # Subscription Tracker
 
-Welcome to the most wonderfully mad way to track your subscriptions! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
+*Tips hat* Welcome to the most wonderfully mad way to track your subscriptions! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
 ## Features
 
@@ -278,3 +300,16 @@ To use these images:
 ## License
 
 This project is open source and available under the MIT License.
+
+## Support
+
+If you encounter any issues or have questions, please open an issue on GitHub. Remember, we're all mad here, but we help each other!
+
+---
+
+*"Take more tea," the March Hare said to Alice, very earnestly.*
+
+Built with 🎩 and ☕ by the Mad Hatter
+
+
+
