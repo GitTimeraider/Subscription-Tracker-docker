@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="header">
+    <h1>Subscription Dashboard</h1>
+    <div>
+        <a href="{{ url_for('main.add_subscription') }}" class="btn btn-primary">Add Subscription</a>
+        <a href="{{ url_for('main.logout') }}" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+
+<h3>Total Monthly Cost: ${{ "%.2f"|format(total_monthly) }}</h3>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Company</th>
+            <th>Cost</th>
+            <th>Billing Cycle</th>
+            <th>Monthly Cost</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sub in subscriptions %}
+        <tr>
+            <td>{{ sub.name }}</td>
+            <td>{{ sub.company }}</td>
+            <td>${{ "%.2f"|format(sub.cost) }}</td>
+            <td>
+                {% if sub.billing_cycle == 'custom' %}
+                    Every {{ sub.custom_days }} days
+                {% else %}
+                    {{ sub.billing_cycle|capitalize }}
+                {% endif %}
+            </td>
+            <td>${{ "%.2f"|format(sub.get_monthly_cost()) }}</td>
+            <td>{{ sub.start_date }}</td>
+            <td>{{ sub.end_date or 'N/A' }}</td>
+            <td>
+                <a href="{{ url_for('main.edit_subscription', id=sub.id) }}">Edit</a> |
+                <a href="{{ url_for('main.delete_subscription', id=sub.id) }}" onclick="return confirm('Are you sure?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
