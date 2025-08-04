@@ -269,15 +269,7 @@ To use these images:
 
 This project is open source and available under the MIT License.
 
-## Support
 
-If you encounter any issues or have questions, please open an issue on GitHub. Remember, we're all mad here, but we help each other!
-
----
-
-*"Take more tea," the March Hare said to Alice, very earnestly.*
-
-Built with 🎩 and ☕ by the Mad Hatter
 
 
 
