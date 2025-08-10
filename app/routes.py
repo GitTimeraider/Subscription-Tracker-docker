@@ -373,7 +373,7 @@ def add_payment_method():
     if form.validate_on_submit():
         payment_method = PaymentMethod(
             name=form.name.data,
-            type=form.type.data,
+            payment_type=form.payment_type.data,
             last_four=form.last_four.data,
             notes=form.notes.data,
             user_id=current_user.id
@@ -396,7 +396,7 @@ def edit_payment_method(id):
     form = PaymentMethodForm(obj=payment_method)
     if form.validate_on_submit():
         payment_method.name = form.name.data
-        payment_method.type = form.type.data
+        payment_method.payment_type = form.payment_type.data
         payment_method.last_four = form.last_four.data
         payment_method.notes = form.notes.data
         db.session.commit()

@@ -24,7 +24,7 @@
                                     {{ payment_method.name }}
                                 </h5>
                                 <p class="card-text">
-                                    <strong>Type:</strong> {{ payment_method.type.replace('_', ' ').title() }}<br>
+                                    <strong>Type:</strong> {{ payment_method.payment_type.replace('_', ' ').title() }}<br>
                                     {% if payment_method.last_four %}
                                     <strong>Last 4:</strong> •••• {{ payment_method.last_four }}<br>
                                     {% endif %}

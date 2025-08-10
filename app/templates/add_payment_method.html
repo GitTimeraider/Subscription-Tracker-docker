@@ -27,11 +27,11 @@
                         </div>
 
                         <div class="mb-3">
-                            {{ form.type.label(class="form-label") }}
-                            {{ form.type(class="form-select") }}
-                            {% if form.type.errors %}
+                            {{ form.payment_type.label(class="form-label") }}
+                            {{ form.payment_type(class="form-select") }}
+                            {% if form.payment_type.errors %}
                                 <div class="text-danger">
-                                    {% for error in form.type.errors %}
+                                    {% for error in form.payment_type.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>

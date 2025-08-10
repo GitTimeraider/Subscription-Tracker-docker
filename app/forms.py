@@ -119,7 +119,7 @@ class EmailSettingsForm(FlaskForm):
 
 class PaymentMethodForm(FlaskForm):
     name = StringField('Payment Method Name', validators=[DataRequired(), Length(min=1, max=100)])
-    type = SelectField('Type', 
+    payment_type = SelectField('Type', 
                       choices=[('credit_card', 'Credit Card'),
                              ('debit_card', 'Debit Card'),
                              ('bank_account', 'Bank Account'),

@@ -32,14 +32,18 @@ class UserSettings(db.Model):
 
 class PaymentMethod(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(200))
-    is_active = db.Column(db.Boolean, default=True)
+    payment_type = db.Column(db.String(50), nullable=False)
+    last_four = db.Column(db.String(4), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship back to user
-    user = db.relationship('User', backref='payment_methods')
+    user = db.relationship('User', backref=db.backref('payment_methods', lazy=True))
+    
+    def __repr__(self):
+        return f'<PaymentMethod {self.name}>'
 
 class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
