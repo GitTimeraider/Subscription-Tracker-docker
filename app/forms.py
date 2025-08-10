@@ -109,7 +109,8 @@ class GeneralSettingsForm(FlaskForm):
                                  ('US/Central', 'Central Time'), ('US/Mountain', 'Mountain Time'),
                                  ('US/Pacific', 'Pacific Time'), ('Europe/London', 'London'),
                                  ('Europe/Paris', 'Paris'), ('Europe/Berlin', 'Berlin'),
-                                 ('Asia/Tokyo', 'Tokyo'), ('Asia/Shanghai', 'Shanghai')],
+                                 ('Europe/Amsterdam', 'Amsterdam'), ('Asia/Tokyo', 'Tokyo'), 
+                                 ('Asia/Shanghai', 'Shanghai')],
                           validators=[DataRequired()])
     
     def __init__(self, *args, **kwargs):
