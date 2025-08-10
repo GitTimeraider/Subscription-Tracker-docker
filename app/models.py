@@ -28,6 +28,18 @@ class UserSettings(db.Model):
     notification_days = db.Column(db.Integer, default=7)
     currency = db.Column(db.String(3), default='USD')
     timezone = db.Column(db.String(50), default='UTC')
+    fixer_api_key = db.Column(db.String(100))  # API key for currency conversion
+
+class PaymentMethod(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship back to user
+    user = db.relationship('User', backref='payment_methods')
 
 class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -35,40 +47,71 @@ class Subscription(db.Model):
     company = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50))  # Software, Hardware, Entertainment, etc.
     cost = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='USD')  # Currency of the subscription
     billing_cycle = db.Column(db.String(50), nullable=False)  # daily, weekly, monthly, yearly, custom
     custom_days = db.Column(db.Integer)  # For custom billing cycles
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)  # None means infinite
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_method.id'))
     last_notification = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    payment_method = db.relationship('PaymentMethod', backref='subscriptions')
 
-    def get_monthly_cost(self):
-        """Calculate monthly cost based on billing cycle"""
+    def get_monthly_cost(self, target_currency=None, exchange_rates=None):
+        """Calculate monthly cost based on billing cycle, optionally converted to target currency"""
+        monthly_cost = 0
+        
         if self.billing_cycle == 'daily':
-            return self.cost * 30
+            monthly_cost = self.cost * 30
         elif self.billing_cycle == 'weekly':
-            return self.cost * 4.33  # Average weeks per month
+            monthly_cost = self.cost * 4.33  # Average weeks per month
         elif self.billing_cycle == 'bi-weekly':
-            return self.cost * 2.17  # Every 2 weeks
+            monthly_cost = self.cost * 2.17  # Every 2 weeks
         elif self.billing_cycle == 'monthly':
-            return self.cost
+            monthly_cost = self.cost
         elif self.billing_cycle == 'bi-monthly':
-            return self.cost / 2  # Every 2 months
+            monthly_cost = self.cost / 2  # Every 2 months
         elif self.billing_cycle == 'quarterly':
-            return self.cost / 3  # Every 3 months
+            monthly_cost = self.cost / 3  # Every 3 months
         elif self.billing_cycle == 'semi-annually':
-            return self.cost / 6  # Every 6 months
+            monthly_cost = self.cost / 6  # Every 6 months
         elif self.billing_cycle == 'yearly':
-            return self.cost / 12
+            monthly_cost = self.cost / 12
         elif self.billing_cycle == 'custom' and self.custom_days:
-            return (self.cost / self.custom_days) * 30.44  # Average days per month
-        return 0
+            monthly_cost = (self.cost / self.custom_days) * 30.44  # Average days per month
+        
+        # Convert currency if needed
+        if target_currency and target_currency != self.currency and exchange_rates:
+            if self.currency in exchange_rates and target_currency in exchange_rates:
+                # Convert from subscription currency to USD, then to target currency
+                if self.currency != 'USD':
+                    monthly_cost = monthly_cost / exchange_rates[self.currency]
+                if target_currency != 'USD':
+                    monthly_cost = monthly_cost * exchange_rates[target_currency]
+        
+        return monthly_cost
 
-    def get_yearly_cost(self):
+    def get_yearly_cost(self, target_currency=None, exchange_rates=None):
         """Calculate yearly cost"""
-        return self.get_monthly_cost() * 12
+        return self.get_monthly_cost(target_currency, exchange_rates) * 12
+
+    def get_cost_in_currency(self, target_currency=None, exchange_rates=None):
+        """Get the raw cost converted to target currency"""
+        cost = self.cost
+        
+        if target_currency and target_currency != self.currency and exchange_rates:
+            if self.currency in exchange_rates and target_currency in exchange_rates:
+                # Convert from subscription currency to USD, then to target currency
+                if self.currency != 'USD':
+                    cost = cost / exchange_rates[self.currency]
+                if target_currency != 'USD':
+                    cost = cost * exchange_rates[target_currency]
+        
+        return cost
 
     def is_expiring_soon(self, days_ahead=7):
         """Check if subscription is expiring within specified days"""

@@ -2,7 +2,8 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, FloatField, DateField, SelectField, IntegerField, TextAreaField, BooleanField, ValidationError
 from wtforms.validators import DataRequired, Optional, Email, EqualTo, Length, NumberRange
 from flask_login import current_user
-from app.models import User
+from app.models import User, PaymentMethod
+from app.currency import currency_converter
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -40,6 +41,7 @@ class SubscriptionForm(FlaskForm):
                                  ('other', 'Other')],
                           validators=[Optional()])
     cost = FloatField('Cost', validators=[DataRequired(), NumberRange(min=0)])
+    currency = SelectField('Currency', validators=[DataRequired()])
     billing_cycle = SelectField('Billing Cycle', 
                                choices=[('daily', 'Daily'),
                                       ('weekly', 'Weekly'),
@@ -52,9 +54,23 @@ class SubscriptionForm(FlaskForm):
                                       ('custom', 'Custom')],
                                validators=[DataRequired()])
     custom_days = IntegerField('Custom Days', validators=[Optional(), NumberRange(min=1)])
+    payment_method_id = SelectField('Payment Method', coerce=int, validators=[Optional()])
     start_date = DateField('Start Date', validators=[DataRequired()])
     end_date = DateField('End Date (Leave blank for infinite)', validators=[Optional()])
     notes = TextAreaField('Notes', validators=[Optional()])
+    
+    def __init__(self, *args, **kwargs):
+        super(SubscriptionForm, self).__init__(*args, **kwargs)
+        
+        # Set currency choices
+        self.currency.choices = currency_converter.get_supported_currencies()
+        
+        # Set payment method choices
+        if current_user.is_authenticated:
+            payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).all()
+            self.payment_method_id.choices = [(0, 'Select Payment Method')] + [(pm.id, pm.name) for pm in payment_methods]
+        else:
+            self.payment_method_id.choices = [(0, 'Select Payment Method')]
 
 class UserSettingsForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
@@ -79,10 +95,8 @@ class NotificationSettingsForm(FlaskForm):
     email_notifications = BooleanField('Enable Email Notifications')
     notification_days = IntegerField('Days before expiry to send notification', 
                                    validators=[DataRequired(), NumberRange(min=1, max=365)])
-    currency = SelectField('Currency', 
-                          choices=[('USD', 'USD ($)'), ('EUR', 'EUR (€)'), ('GBP', 'GBP (£)'), 
-                                 ('CAD', 'CAD ($)'), ('AUD', 'AUD ($)'), ('JPY', 'JPY (¥)')],
-                          validators=[DataRequired()])
+    currency = SelectField('Preferred Display Currency', validators=[DataRequired()])
+    fixer_api_key = StringField('Fixer.io API Key (for currency conversion)', validators=[Optional()])
     timezone = SelectField('Timezone',
                           choices=[('UTC', 'UTC'), ('US/Eastern', 'Eastern Time'), 
                                  ('US/Central', 'Central Time'), ('US/Mountain', 'Mountain Time'),
@@ -90,6 +104,10 @@ class NotificationSettingsForm(FlaskForm):
                                  ('Europe/Paris', 'Paris'), ('Europe/Berlin', 'Berlin'),
                                  ('Asia/Tokyo', 'Tokyo'), ('Asia/Shanghai', 'Shanghai')],
                           validators=[DataRequired()])
+    
+    def __init__(self, *args, **kwargs):
+        super(NotificationSettingsForm, self).__init__(*args, **kwargs)
+        self.currency.choices = currency_converter.get_supported_currencies()
 
 class EmailSettingsForm(FlaskForm):
     mail_server = StringField('SMTP Server', validators=[Optional()])
@@ -98,3 +116,17 @@ class EmailSettingsForm(FlaskForm):
     mail_username = StringField('Email Username', validators=[Optional(), Email()])
     mail_password = PasswordField('Email Password', validators=[Optional()])
     mail_from = StringField('From Email Address', validators=[Optional(), Email()])
+
+class PaymentMethodForm(FlaskForm):
+    name = StringField('Payment Method Name', validators=[DataRequired(), Length(min=1, max=100)])
+    type = SelectField('Type', 
+                      choices=[('credit_card', 'Credit Card'),
+                             ('debit_card', 'Debit Card'),
+                             ('bank_account', 'Bank Account'),
+                             ('paypal', 'PayPal'),
+                             ('apple_pay', 'Apple Pay'),
+                             ('google_pay', 'Google Pay'),
+                             ('other', 'Other')],
+                      validators=[DataRequired()])
+    last_four = StringField('Last 4 Digits (optional)', validators=[Optional(), Length(max=4)])
+    notes = TextAreaField('Notes', validators=[Optional()])

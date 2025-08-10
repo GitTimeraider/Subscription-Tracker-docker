@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
-from app.models import User, Subscription, UserSettings
+from app.models import User, Subscription, UserSettings, PaymentMethod
 from app.forms import (LoginForm, RegistrationForm, SubscriptionForm, UserSettingsForm, 
-                      NotificationSettingsForm, EmailSettingsForm)
+                      NotificationSettingsForm, EmailSettingsForm, PaymentMethodForm)
+from app.currency import currency_converter
 from datetime import datetime, timedelta
 import os
 
@@ -82,18 +83,28 @@ def dashboard():
     
     subscriptions = query.order_by(Subscription.end_date.asc()).all()
     
-    # Calculate totals
-    total_monthly = sum(sub.get_monthly_cost() for sub in subscriptions if sub.is_active)
-    total_yearly = total_monthly * 12
+    # Get user settings for currency conversion
+    user_settings = current_user.settings or UserSettings()
+    user_currency = user_settings.currency
+    
+    # Set up currency converter with user's API key if available
+    if user_settings.fixer_api_key:
+        currency_converter.set_api_key(user_settings.fixer_api_key)
+    
+    # Calculate totals in user's preferred currency
+    total_monthly = sum(sub.get_monthly_cost_in_currency(user_currency) for sub in subscriptions if sub.is_active)
+    total_yearly = sum(sub.get_yearly_cost_in_currency(user_currency) for sub in subscriptions if sub.is_active)
     
     # Get categories for filter
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
     categories = [cat[0] for cat in categories if cat[0]]
     
     # Check for expiring subscriptions
-    user_settings = current_user.settings or UserSettings()
     expiring_soon = [sub for sub in subscriptions 
                     if sub.is_expiring_soon(user_settings.notification_days)]
+    
+    # Get currency symbol for display
+    currency_symbol = currency_converter.get_currency_symbol(user_currency)
     
     return render_template('dashboard.html', 
                          subscriptions=subscriptions,
@@ -102,20 +113,26 @@ def dashboard():
                          categories=categories,
                          current_category=category_filter,
                          current_status=status_filter,
-                         expiring_soon=expiring_soon)
+                         expiring_soon=expiring_soon,
+                         user_currency=user_currency,
+                         currency_symbol=currency_symbol)
 
 @main.route('/add_subscription', methods=['GET', 'POST'])
 @login_required
 def add_subscription():
     form = SubscriptionForm()
     if form.validate_on_submit():
+        payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
+        
         subscription = Subscription(
             name=form.name.data,
             company=form.company.data,
             category=form.category.data,
             cost=form.cost.data,
+            currency=form.currency.data,
             billing_cycle=form.billing_cycle.data,
             custom_days=form.custom_days.data if form.billing_cycle.data == 'custom' else None,
+            payment_method_id=payment_method_id,
             start_date=form.start_date.data,
             end_date=form.end_date.data,
             notes=form.notes.data,
@@ -137,12 +154,16 @@ def edit_subscription(id):
 
     form = SubscriptionForm(obj=subscription)
     if form.validate_on_submit():
+        payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
+        
         subscription.name = form.name.data
         subscription.company = form.company.data
         subscription.category = form.category.data
         subscription.cost = form.cost.data
+        subscription.currency = form.currency.data
         subscription.billing_cycle = form.billing_cycle.data
         subscription.custom_days = form.custom_days.data if form.billing_cycle.data == 'custom' else None
+        subscription.payment_method_id = payment_method_id
         subscription.start_date = form.start_date.data
         subscription.end_date = form.end_date.data
         subscription.notes = form.notes.data
@@ -218,6 +239,7 @@ def notification_settings():
         settings.email_notifications = form.email_notifications.data
         settings.notification_days = form.notification_days.data
         settings.currency = form.currency.data
+        settings.fixer_api_key = form.fixer_api_key.data
         settings.timezone = form.timezone.data
         
         db.session.commit()
@@ -257,10 +279,18 @@ def email_settings():
 def analytics():
     subscriptions = Subscription.query.filter_by(user_id=current_user.id).all()
     
+    # Get user settings for currency conversion
+    user_settings = current_user.settings or UserSettings()
+    user_currency = user_settings.currency
+    
+    # Set up currency converter with user's API key if available
+    if user_settings.fixer_api_key:
+        currency_converter.set_api_key(user_settings.fixer_api_key)
+    
     # Calculate analytics
     active_subs = [s for s in subscriptions if s.is_active]
-    total_monthly = sum(sub.get_monthly_cost() for sub in active_subs)
-    total_yearly = total_monthly * 12
+    total_monthly = sum(sub.get_monthly_cost_in_currency(user_currency) for sub in active_subs)
+    total_yearly = sum(sub.get_yearly_cost_in_currency(user_currency) for sub in active_subs)
     
     # Category breakdown
     category_costs = {}
@@ -268,7 +298,7 @@ def analytics():
         category = sub.category or 'other'
         if category not in category_costs:
             category_costs[category] = 0
-        category_costs[category] += sub.get_monthly_cost()
+        category_costs[category] += sub.get_monthly_cost_in_currency(user_currency)
     
     # Billing cycle breakdown
     cycle_costs = {}
@@ -276,7 +306,7 @@ def analytics():
         cycle = sub.billing_cycle
         if cycle not in cycle_costs:
             cycle_costs[cycle] = 0
-        cycle_costs[cycle] += sub.get_monthly_cost()
+        cycle_costs[cycle] += sub.get_monthly_cost_in_currency(user_currency)
     
     # Upcoming renewals
     upcoming = []
@@ -291,6 +321,9 @@ def analytics():
     
     upcoming.sort(key=lambda x: x['days_left'])
     
+    # Get currency symbol for display
+    currency_symbol = currency_converter.get_currency_symbol(user_currency)
+    
     return render_template('analytics.html',
                          total_monthly=total_monthly,
                          total_yearly=total_yearly,
@@ -298,7 +331,9 @@ def analytics():
                          cycle_costs=cycle_costs,
                          upcoming=upcoming,
                          active_count=len(active_subs),
-                         total_count=len(subscriptions))
+                         total_count=len(subscriptions),
+                         user_currency=user_currency,
+                         currency_symbol=currency_symbol)
 
 @main.route('/api/subscription_data')
 @login_required
@@ -306,11 +341,85 @@ def api_subscription_data():
     """API endpoint for chart data"""
     subscriptions = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
     
+    # Get user settings for currency conversion
+    user_settings = current_user.settings or UserSettings()
+    user_currency = user_settings.currency
+    
+    # Set up currency converter with user's API key if available
+    if user_settings.fixer_api_key:
+        currency_converter.set_api_key(user_settings.fixer_api_key)
+    
     category_data = {}
     for sub in subscriptions:
         category = sub.category or 'other'
         if category not in category_data:
             category_data[category] = 0
-        category_data[category] += sub.get_monthly_cost()
+        category_data[category] += sub.get_monthly_cost_in_currency(user_currency)
     
     return jsonify(category_data)
+
+@main.route('/payment_methods')
+@login_required
+def payment_methods():
+    """List all payment methods for the current user"""
+    payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).all()
+    return render_template('payment_methods.html', payment_methods=payment_methods)
+
+@main.route('/add_payment_method', methods=['GET', 'POST'])
+@login_required
+def add_payment_method():
+    """Add a new payment method"""
+    form = PaymentMethodForm()
+    if form.validate_on_submit():
+        payment_method = PaymentMethod(
+            name=form.name.data,
+            type=form.type.data,
+            last_four=form.last_four.data,
+            notes=form.notes.data,
+            user_id=current_user.id
+        )
+        db.session.add(payment_method)
+        db.session.commit()
+        flash('Payment method added successfully!', 'success')
+        return redirect(url_for('main.payment_methods'))
+    return render_template('add_payment_method.html', form=form)
+
+@main.route('/edit_payment_method/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_payment_method(id):
+    """Edit an existing payment method"""
+    payment_method = PaymentMethod.query.get_or_404(id)
+    if payment_method.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.payment_methods'))
+
+    form = PaymentMethodForm(obj=payment_method)
+    if form.validate_on_submit():
+        payment_method.name = form.name.data
+        payment_method.type = form.type.data
+        payment_method.last_four = form.last_four.data
+        payment_method.notes = form.notes.data
+        db.session.commit()
+        flash('Payment method updated successfully!', 'success')
+        return redirect(url_for('main.payment_methods'))
+    return render_template('edit_payment_method.html', form=form, payment_method=payment_method)
+
+@main.route('/delete_payment_method/<int:id>')
+@login_required
+def delete_payment_method(id):
+    """Delete a payment method"""
+    payment_method = PaymentMethod.query.get_or_404(id)
+    if payment_method.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.payment_methods'))
+
+    # Check if any subscriptions are using this payment method
+    subscriptions_using = Subscription.query.filter_by(payment_method_id=id).all()
+    if subscriptions_using:
+        flash(f'Cannot delete payment method. It is used by {len(subscriptions_using)} subscription(s).', 'error')
+        return redirect(url_for('main.payment_methods'))
+
+    db.session.delete(payment_method)
+    db.session.commit()
+    flash('Payment method deleted successfully!', 'success')
+    return redirect(url_for('main.payment_methods'))

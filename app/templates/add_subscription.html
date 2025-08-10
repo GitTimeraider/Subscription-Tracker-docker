@@ -48,14 +48,40 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
+                            {{ form.currency.label(class="form-label") }}
+                            {{ form.currency(class="form-select") }}
+                            {% if form.currency.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.currency.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             {{ form.cost.label(class="form-label") }}
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                {{ form.cost(class="form-control") }}
-                            </div>
+                            {{ form.cost(class="form-control") }}
                             {% if form.cost.errors %}
                                 <div class="text-danger mt-1">
                                     {% for error in form.cost.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.payment_method_id.label(class="form-label") }}
+                            {{ form.payment_method_id(class="form-select") }}
+                            <small class="form-text text-muted">
+                                <a href="{{ url_for('main.add_payment_method') }}" target="_blank">Add payment method</a>
+                            </small>
+                            {% if form.payment_method_id.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.payment_method_id.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>

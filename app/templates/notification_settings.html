@@ -56,6 +56,21 @@
                     </div>
                     
                     <div class="mb-3">
+                        {{ form.fixer_api_key.label(class="form-label") }}
+                        {{ form.fixer_api_key(class="form-control", type="password") }}
+                        <small class="form-text text-muted">
+                            Optional: Get a free API key from <a href="https://fixer.io/" target="_blank">fixer.io</a> for currency conversion
+                        </small>
+                        {% if form.fixer_api_key.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.fixer_api_key.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
                         {{ form.timezone.label(class="form-label") }}
                         {{ form.timezone(class="form-select") }}
                         <small class="form-text text-muted">

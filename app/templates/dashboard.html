@@ -7,16 +7,16 @@
     <div class="col-md-3">
         <div class="card stats-card">
             <div class="card-body text-center">
-                <h3>${{ "%.2f"|format(total_monthly) }}</h3>
-                <p class="mb-0">Monthly Total</p>
+                <h3>{{ currency_symbol }}{{ "%.2f"|format(total_monthly) }}</h3>
+                <p class="mb-0">Monthly Total ({{ user_currency }})</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card stats-card">
             <div class="card-body text-center">
-                <h3>${{ "%.2f"|format(total_yearly) }}</h3>
-                <p class="mb-0">Yearly Total</p>
+                <h3>{{ currency_symbol }}{{ "%.2f"|format(total_yearly) }}</h3>
+                <p class="mb-0">Yearly Total ({{ user_currency }})</p>
             </div>
         </div>
     </div>
@@ -100,6 +100,7 @@
                         <th><i class="fas fa-building me-1"></i>Company</th>
                         <th><i class="fas fa-folder me-1"></i>Category</th>
                         <th><i class="fas fa-dollar-sign me-1"></i>Cost</th>
+                        <th><i class="fas fa-credit-card me-1"></i>Payment</th>
                         <th><i class="fas fa-calendar me-1"></i>Cycle</th>
                         <th><i class="fas fa-calculator me-1"></i>Monthly</th>
                         <th><i class="fas fa-play me-1"></i>Start</th>
@@ -125,7 +126,26 @@
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
-                        <td>${{ "%.2f"|format(sub.cost) }}</td>
+                        <td>
+                            {% if sub.currency %}
+                                {% if sub.currency == 'USD' %}${% elif sub.currency == 'EUR' %}€{% elif sub.currency == 'GBP' %}£{% elif sub.currency == 'JPY' %}¥{% else %}{{ sub.currency }} {% endif %}{{ "%.2f"|format(sub.cost) }}
+                                {% if sub.currency != user_currency %}
+                                    <small class="text-muted">({{ sub.currency }})</small>
+                                {% endif %}
+                            {% else %}
+                                ${{ "%.2f"|format(sub.cost) }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sub.payment_method %}
+                                <small class="text-primary">{{ sub.payment_method.name }}</small>
+                                {% if sub.payment_method.last_four %}
+                                    <br><small class="text-muted">•••• {{ sub.payment_method.last_four }}</small>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted">Not set</small>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if sub.billing_cycle == 'custom' %}
                                 <span class="badge bg-info">Every {{ sub.custom_days }} days</span>
@@ -134,7 +154,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <strong>${{ "%.2f"|format(sub.get_monthly_cost()) }}</strong>
+                            <strong>{{ currency_symbol }}{{ "%.2f"|format(sub.get_monthly_cost_in_currency(user_currency)) }}</strong>
                         </td>
                         <td>{{ sub.start_date.strftime('%m/%d/%Y') }}</td>
                         <td>
