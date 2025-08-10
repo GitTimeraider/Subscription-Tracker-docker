@@ -11,11 +11,11 @@ class CurrencyConverter:
         self.cache_duration = timedelta(hours=1)  # Cache for 1 hour
         
     def set_api_key(self, api_key):
-        """Set the Fixer.io API key"""
+        """Set the APILayer API key"""
         self.api_key = api_key
     
-    def get_exchange_rates(self, base_currency='USD'):
-        """Get exchange rates from Fixer.io API with caching"""
+    def get_exchange_rates(self, base_currency='EUR'):
+        """Get exchange rates from APILayer API with caching"""
         if not self.api_key:
             return None
             
@@ -28,15 +28,17 @@ class CurrencyConverter:
                 return cache_data['rates']
         
         try:
-            # Fixer.io API endpoint
-            url = f"https://api.fixer.io/latest"
+            # APILayer (formerly Fixer.io) API endpoint
+            url = f"https://api.apilayer.com/fixer/latest"
+            headers = {
+                'apikey': self.api_key
+            }
             params = {
-                'access_key': self.api_key,
                 'base': base_currency,
                 'symbols': 'USD,EUR,GBP,CAD,AUD,JPY,CHF,CNY,INR,SEK,NOK,DKK,PLN,CZK,HUF,BGN,RON,HRK,RUB,TRY,BRL,MXN,SGD,HKD,KRW,ZAR,NZD,THB,MYR,PHP,IDR,VND'
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, headers=headers, params=params, timeout=10)
             response.raise_for_status()
             
             data = response.json()
@@ -57,7 +59,7 @@ class CurrencyConverter:
                 
                 return rates
             else:
-                current_app.logger.error(f"Fixer.io API error: {data.get('error', {}).get('info', 'Unknown error')}")
+                current_app.logger.error(f"APILayer API error: {data.get('error', {}).get('info', 'Unknown error')}")
                 return None
                 
         except requests.exceptions.RequestException as e:
@@ -84,35 +86,35 @@ class CurrencyConverter:
         if from_currency == to_currency:
             return amount
             
-        rates = self.get_exchange_rates('USD')  # Use USD as base
+        rates = self.get_exchange_rates('EUR')  # Use EUR as base
         if not rates:
             return amount  # Return original amount if conversion fails
         
         try:
-            # Convert to USD first if needed
-            if from_currency != 'USD':
+            # Convert to EUR first if needed
+            if from_currency != 'EUR':
                 if from_currency not in rates:
                     return amount
-                amount_usd = amount / rates[from_currency]
+                amount_eur = amount / rates[from_currency]
             else:
-                amount_usd = amount
+                amount_eur = amount
             
-            # Convert from USD to target currency
-            if to_currency != 'USD':
+            # Convert from EUR to target currency
+            if to_currency != 'EUR':
                 if to_currency not in rates:
                     return amount
-                return amount_usd * rates[to_currency]
+                return amount_eur * rates[to_currency]
             else:
-                return amount_usd
+                return amount_eur
                 
         except (KeyError, ZeroDivisionError, TypeError):
             return amount
     
     def get_supported_currencies(self):
-        """Get list of supported currencies"""
+        """Get list of supported currencies with EUR at the top"""
         return [
-            ('USD', 'US Dollar ($)'),
             ('EUR', 'Euro (€)'),
+            ('USD', 'US Dollar ($)'),
             ('GBP', 'British Pound (£)'),
             ('CAD', 'Canadian Dollar (C$)'),
             ('AUD', 'Australian Dollar (A$)'),

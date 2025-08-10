@@ -37,7 +37,7 @@ class UserSettings(db.Model):
     mail_from = db.Column(db.String(100))
     
     # General settings
-    currency = db.Column(db.String(3), default='USD')
+    currency = db.Column(db.String(3), default='EUR')
     timezone = db.Column(db.String(50), default='UTC')
     fixer_api_key = db.Column(db.String(100))
     
@@ -68,7 +68,7 @@ class Subscription(db.Model):
     company = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50))  # Software, Hardware, Entertainment, etc.
     cost = db.Column(db.Float, nullable=False)
-    currency = db.Column(db.String(3), default='USD')  # Currency of the subscription
+    currency = db.Column(db.String(3), default='EUR')  # Currency of the subscription
     billing_cycle = db.Column(db.String(50), nullable=False)  # daily, weekly, monthly, yearly, custom
     custom_days = db.Column(db.Integer)  # For custom billing cycles (deprecated, use custom_period_value)
     custom_period_type = db.Column(db.String(10), default='days')  # 'days', 'months', 'years'

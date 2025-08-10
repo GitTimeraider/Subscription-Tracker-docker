@@ -103,7 +103,7 @@ class NotificationSettingsForm(FlaskForm):
 
 class GeneralSettingsForm(FlaskForm):
     currency = SelectField('Preferred Display Currency', validators=[DataRequired()])
-    fixer_api_key = StringField('Fixer.io API Key (for currency conversion)', validators=[Optional()])
+    fixer_api_key = StringField('APILayer API Key (for currency conversion)', validators=[Optional()])
     timezone = SelectField('Timezone',
                           choices=[('UTC', 'UTC'), ('US/Eastern', 'Eastern Time'), 
                                  ('US/Central', 'Central Time'), ('US/Mountain', 'Mountain Time'),
