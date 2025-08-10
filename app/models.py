@@ -24,11 +24,29 @@ def load_user(user_id):
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Notification settings
     email_notifications = db.Column(db.Boolean, default=True)
     notification_days = db.Column(db.Integer, default=7)
+    
+    # SMTP settings for email notifications
+    mail_server = db.Column(db.String(100))
+    mail_port = db.Column(db.Integer, default=587)
+    mail_use_tls = db.Column(db.Boolean, default=True)
+    mail_username = db.Column(db.String(100))
+    mail_password = db.Column(db.String(100))
+    mail_from = db.Column(db.String(100))
+    
+    # General settings
     currency = db.Column(db.String(3), default='USD')
     timezone = db.Column(db.String(50), default='UTC')
-    fixer_api_key = db.Column(db.String(100))  # API key for currency conversion
+    fixer_api_key = db.Column(db.String(100))
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('settings', uselist=False))
+
+    def __repr__(self):
+        return f'<UserSettings {self.user_id}>'
 
 class PaymentMethod(db.Model):
     id = db.Column(db.Integer, primary_key=True)

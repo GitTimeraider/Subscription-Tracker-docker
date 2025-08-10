@@ -101,19 +101,6 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
-                        <div class="col-md-6 mb-3" id="custom_days_field" style="display: none;">
-                            {{ form.custom_days.label(class="form-label") }}
-                            {{ form.custom_days(class="form-control") }}
-                            <small class="form-text text-muted">Legacy: Use custom period fields below</small>
-                            {% if form.custom_days.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.custom_days.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
                     </div>
                     
                     <div class="row" id="custom_period_fields" style="display: none;">
@@ -199,14 +186,11 @@
 {% block extra_js %}
 <script>
     document.getElementById('billing_cycle').addEventListener('change', function() {
-        const customDaysField = document.getElementById('custom_days_field');
         const customPeriodFields = document.getElementById('custom_period_fields');
         
         if (this.value === 'custom') {
-            customDaysField.style.display = 'block';
             customPeriodFields.style.display = 'block';
         } else {
-            customDaysField.style.display = 'none';
             customPeriodFields.style.display = 'none';
         }
     });
@@ -222,7 +206,6 @@
         // Trigger custom field display if custom is selected
         const billingCycle = document.getElementById('billing_cycle');
         if (billingCycle.value === 'custom') {
-            document.getElementById('custom_days_field').style.display = 'block';
             document.getElementById('custom_period_fields').style.display = 'block';
         }
     });

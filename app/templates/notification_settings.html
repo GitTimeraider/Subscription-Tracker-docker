@@ -40,58 +40,18 @@
                         {% endif %}
                     </div>
                     
-                    <div class="mb-3">
-                        {{ form.currency.label(class="form-label") }}
-                        {{ form.currency(class="form-select") }}
-                        <small class="form-text text-muted">
-                            Preferred currency for displaying costs
-                        </small>
-                        {% if form.currency.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.currency.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.fixer_api_key.label(class="form-label") }}
-                        {{ form.fixer_api_key(class="form-control", type="password") }}
-                        <small class="form-text text-muted">
-                            Optional: Get a free API key from <a href="https://fixer.io/" target="_blank">fixer.io</a> for currency conversion
-                        </small>
-                        {% if form.fixer_api_key.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.fixer_api_key.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.timezone.label(class="form-label") }}
-                        {{ form.timezone(class="form-select") }}
-                        <small class="form-text text-muted">
-                            Your timezone for accurate notification timing
-                        </small>
-                        {% if form.timezone.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.timezone.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                         </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Settings
-                        </button>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('main.email_settings') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-envelope me-2"></i>Email Settings
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

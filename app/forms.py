@@ -53,7 +53,6 @@ class SubscriptionForm(FlaskForm):
                                       ('yearly', 'Yearly'), 
                                       ('custom', 'Custom')],
                                validators=[DataRequired()])
-    custom_days = IntegerField('Custom Days', validators=[Optional(), NumberRange(min=1)])
     custom_period_type = SelectField('Custom Period Type',
                                    choices=[('days', 'Days'),
                                           ('months', 'Months'),
@@ -101,6 +100,8 @@ class NotificationSettingsForm(FlaskForm):
     email_notifications = BooleanField('Enable Email Notifications')
     notification_days = IntegerField('Days before expiry to send notification', 
                                    validators=[DataRequired(), NumberRange(min=1, max=365)])
+
+class GeneralSettingsForm(FlaskForm):
     currency = SelectField('Preferred Display Currency', validators=[DataRequired()])
     fixer_api_key = StringField('Fixer.io API Key (for currency conversion)', validators=[Optional()])
     timezone = SelectField('Timezone',
@@ -112,7 +113,7 @@ class NotificationSettingsForm(FlaskForm):
                           validators=[DataRequired()])
     
     def __init__(self, *args, **kwargs):
-        super(NotificationSettingsForm, self).__init__(*args, **kwargs)
+        super(GeneralSettingsForm, self).__init__(*args, **kwargs)
         self.currency.choices = currency_converter.get_supported_currencies()
 
 class EmailSettingsForm(FlaskForm):

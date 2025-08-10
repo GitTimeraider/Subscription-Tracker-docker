@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod
 from app.forms import (LoginForm, RegistrationForm, SubscriptionForm, UserSettingsForm, 
-                      NotificationSettingsForm, EmailSettingsForm, PaymentMethodForm)
+                      NotificationSettingsForm, GeneralSettingsForm, EmailSettingsForm, PaymentMethodForm)
 from app.currency import currency_converter
 from datetime import datetime, timedelta
 import os
@@ -133,7 +133,6 @@ def add_subscription():
             cost=form.cost.data,
             currency=form.currency.data,
             billing_cycle=form.billing_cycle.data,
-            custom_days=form.custom_days.data if form.billing_cycle.data == 'custom' else None,
             custom_period_type=form.custom_period_type.data if form.billing_cycle.data == 'custom' else None,
             custom_period_value=form.custom_period_value.data if form.billing_cycle.data == 'custom' else None,
             payment_method_id=payment_method_id,
@@ -166,7 +165,6 @@ def edit_subscription(id):
         subscription.cost = form.cost.data
         subscription.currency = form.currency.data
         subscription.billing_cycle = form.billing_cycle.data
-        subscription.custom_days = form.custom_days.data if form.billing_cycle.data == 'custom' else None
         subscription.custom_period_type = form.custom_period_type.data if form.billing_cycle.data == 'custom' else None
         subscription.custom_period_value = form.custom_period_value.data if form.billing_cycle.data == 'custom' else None
         subscription.payment_method_id = payment_method_id
@@ -244,9 +242,6 @@ def notification_settings():
             
         settings.email_notifications = form.email_notifications.data
         settings.notification_days = form.notification_days.data
-        settings.currency = form.currency.data
-        settings.fixer_api_key = form.fixer_api_key.data
-        settings.timezone = form.timezone.data
         
         db.session.commit()
         flash('Notification settings updated successfully!', 'success')
@@ -254,28 +249,51 @@ def notification_settings():
     
     return render_template('notification_settings.html', form=form)
 
+@main.route('/general_settings', methods=['GET', 'POST'])
+@login_required
+def general_settings():
+    settings = current_user.settings or UserSettings(user_id=current_user.id)
+    form = GeneralSettingsForm(obj=settings)
+    
+    if form.validate_on_submit():
+        if not current_user.settings:
+            settings = UserSettings(user_id=current_user.id)
+            db.session.add(settings)
+        else:
+            settings = current_user.settings
+            
+        settings.currency = form.currency.data
+        settings.fixer_api_key = form.fixer_api_key.data
+        settings.timezone = form.timezone.data
+        
+        db.session.commit()
+        flash('General settings updated successfully!', 'success')
+        return redirect(url_for('main.general_settings'))
+    
+    return render_template('general_settings.html', form=form)
+
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required
 def email_settings():
-    # Only admin can access email settings (for security)
-    if current_user.username != 'admin':
-        flash('Access denied', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    form = EmailSettingsForm()
-    
-    # Load current values from environment/config
-    if request.method == 'GET':
-        form.mail_server.data = os.environ.get('MAIL_SERVER', '')
-        form.mail_port.data = int(os.environ.get('MAIL_PORT', 587))
-        form.mail_use_tls.data = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', '1', 'on']
-        form.mail_username.data = os.environ.get('MAIL_USERNAME', '')
-        form.mail_from.data = os.environ.get('MAIL_FROM', '')
+    settings = current_user.settings or UserSettings(user_id=current_user.id)
+    form = EmailSettingsForm(obj=settings)
     
     if form.validate_on_submit():
-        # In a real application, you'd want to store these securely
-        # For now, we'll just show a message about updating environment variables
-        flash('Email settings would be updated. In production, update your environment variables.', 'info')
+        if not current_user.settings:
+            settings = UserSettings(user_id=current_user.id)
+            db.session.add(settings)
+        else:
+            settings = current_user.settings
+            
+        settings.mail_server = form.mail_server.data
+        settings.mail_port = form.mail_port.data
+        settings.mail_use_tls = form.mail_use_tls.data
+        settings.mail_username = form.mail_username.data
+        settings.mail_password = form.mail_password.data
+        settings.mail_from = form.mail_from.data
+        
+        db.session.commit()
+        flash('Email settings updated successfully!', 'success')
         return redirect(url_for('main.email_settings'))
     
     return render_template('email_settings.html', form=form)

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}General Settings - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>General Settings
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.currency.label(class="form-label") }}
+                        {{ form.currency(class="form-select") }}
+                        <small class="form-text text-muted">
+                            Preferred currency for displaying costs and totals
+                        </small>
+                        {% if form.currency.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.currency.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.fixer_api_key.label(class="form-label") }}
+                        {{ form.fixer_api_key(class="form-control", type="password") }}
+                        <small class="form-text text-muted">
+                            Get a free API key from <a href="https://fixer.io/" target="_blank">fixer.io</a> for real-time currency conversion. Without this, currency conversion will not work.
+                        </small>
+                        {% if form.fixer_api_key.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.fixer_api_key.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.timezone.label(class="form-label") }}
+                        {{ form.timezone(class="form-select") }}
+                        <small class="form-text text-muted">
+                            Your timezone for accurate notification timing
+                        </small>
+                        {% if form.timezone.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.timezone.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>Currency Information
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-check text-success me-2"></i>Support for 30+ major currencies</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Real-time exchange rates with API key</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Individual subscription currencies supported</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Exchange rates cached for 1 hour for performance</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

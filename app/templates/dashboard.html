@@ -160,8 +160,6 @@
                             {% if sub.billing_cycle == 'custom' %}
                                 {% if sub.custom_period_value and sub.custom_period_type %}
                                     <span class="badge bg-info">Every {{ sub.custom_period_value }} {{ sub.custom_period_type }}</span>
-                                {% elif sub.custom_days %}
-                                    <span class="badge bg-info">Every {{ sub.custom_days }} days</span>
                                 {% else %}
                                     <span class="badge bg-warning">Custom (undefined)</span>
                                 {% endif %}
