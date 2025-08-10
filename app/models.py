@@ -9,7 +9,6 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
     subscriptions = db.relationship('Subscription', backref='user', lazy=True)
-    settings = db.relationship('UserSettings', backref='user', uselist=False, lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
