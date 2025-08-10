@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Notification Settings - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    <i class="fas fa-bell me-2"></i>Notification Settings
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.email_notifications(class="form-check-input") }}
+                            {{ form.email_notifications.label(class="form-check-label") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            Enable email notifications for expiring subscriptions
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.notification_days.label(class="form-label") }}
+                        {{ form.notification_days(class="form-control") }}
+                        <small class="form-text text-muted">
+                            Number of days before expiry to send notification
+                        </small>
+                        {% if form.notification_days.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.notification_days.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.currency.label(class="form-label") }}
+                        {{ form.currency(class="form-select") }}
+                        <small class="form-text text-muted">
+                            Preferred currency for displaying costs
+                        </small>
+                        {% if form.currency.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.currency.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.timezone.label(class="form-label") }}
+                        {{ form.timezone(class="form-select") }}
+                        <small class="form-text text-muted">
+                            Your timezone for accurate notification timing
+                        </small>
+                        {% if form.timezone.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.timezone.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>Notification Information
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-check text-success me-2"></i>Notifications are checked every 6 hours</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Daily notifications are sent at 9:00 AM</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Only active subscriptions trigger notifications</li>
+                    <li><i class="fas fa-check text-success me-2"></i>You won't receive duplicate notifications on the same day</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

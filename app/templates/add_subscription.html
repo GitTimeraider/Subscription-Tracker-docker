@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Add Subscription - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>Add New Subscription
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.name.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.company.label(class="form-label") }}
+                            {{ form.company(class="form-control") }}
+                            {% if form.company.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.company.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.cost.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.cost(class="form-control") }}
+                            </div>
+                            {% if form.cost.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.cost.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.billing_cycle.label(class="form-label") }}
+                            {{ form.billing_cycle(class="form-select", id="billing_cycle") }}
+                            {% if form.billing_cycle.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.billing_cycle.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3" id="custom_days_field" style="display: none;">
+                            {{ form.custom_days.label(class="form-label") }}
+                            {{ form.custom_days(class="form-control") }}
+                            {% if form.custom_days.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.custom_days.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.start_date.label(class="form-label") }}
+                            {{ form.start_date(class="form-control") }}
+                            {% if form.start_date.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.start_date.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.end_date.label(class="form-label") }}
+                            {{ form.end_date(class="form-control") }}
+                            <small class="form-text text-muted">Leave blank for infinite subscription</small>
+                            {% if form.end_date.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.end_date.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control", rows="3") }}
+                        {% if form.notes.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.notes.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Subscription
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('billing_cycle').addEventListener('change', function() {
+        const customField = document.getElementById('custom_days_field');
+        if (this.value === 'custom') {
+            customField.style.display = 'block';
+        } else {
+            customField.style.display = 'none';
+        }
+    });
+    
+    // Set today as default start date
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateField = document.querySelector('input[name="start_date"]');
+        if (!startDateField.value) {
+            const today = new Date().toISOString().split('T')[0];
+            startDateField.value = today;
+        }
+        
+        // Trigger custom field display if custom is selected
+        const billingCycle = document.getElementById('billing_cycle');
+        if (billingCycle.value === 'custom') {
+            document.getElementById('custom_days_field').style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

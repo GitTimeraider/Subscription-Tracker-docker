@@ -14,5 +14,15 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_FROM = os.environ.get('MAIL_FROM')
 
-    # Notification settings
+    # Notification settings (fallback defaults)
     DAYS_BEFORE_EXPIRY = int(os.environ.get('DAYS_BEFORE_EXPIRY') or 7)
+    
+    # Application settings
+    ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE') or 20)
+    
+    # Security settings
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = None  # Never expire CSRF tokens
+    
+    # Session configuration
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)  # Sessions last 7 days

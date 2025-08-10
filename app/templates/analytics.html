@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h3>${{ "%.2f"|format(total_monthly) }}</h3>
+                <p class="mb-0">Monthly Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h3>${{ "%.2f"|format(total_yearly) }}</h3>
+                <p class="mb-0">Yearly Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h3>{{ active_count }}</h3>
+                <p class="mb-0">Active</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h3>{{ total_count }}</h3>
+                <p class="mb-0">Total</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Spending by Category
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Billing Cycle Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="cycleChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Category Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if category_costs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th class="text-end">Monthly Cost</th>
+                                    <th class="text-end">% of Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category, cost in category_costs.items() %}
+                                <tr>
+                                    <td>{{ category|replace('_', ' ')|title }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(cost) }}</td>
+                                    <td class="text-end">{{ "%.1f"|format((cost/total_monthly)*100 if total_monthly > 0 else 0) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Upcoming Renewals
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming %}
+                    {% for item in upcoming %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 
+                         {% if item.days_left <= 3 %}bg-danger bg-opacity-10 border-start border-danger border-4
+                         {% elif item.days_left <= 7 %}bg-warning bg-opacity-10 border-start border-warning border-4
+                         {% else %}bg-info bg-opacity-10 border-start border-info border-4{% endif %}">
+                        <div>
+                            <strong>{{ item.subscription.name }}</strong><br>
+                            <small class="text-muted">{{ item.subscription.company }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge 
+                                {% if item.days_left <= 3 %}bg-danger
+                                {% elif item.days_left <= 7 %}bg-warning
+                                {% else %}bg-info{% endif %}">
+                                {{ item.days_left }} day{{ 's' if item.days_left != 1 else '' }}
+                            </span><br>
+                            <small class="text-muted">${{ "%.2f"|format(item.subscription.cost) }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No renewals in the next 30 days</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calculator me-2"></i>Cost Projections
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h6>This Month</h6>
+                        <h4 class="text-primary">${{ "%.2f"|format(total_monthly) }}</h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Next 3 Months</h6>
+                        <h4 class="text-info">${{ "%.2f"|format(total_monthly * 3) }}</h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Next 6 Months</h6>
+                        <h4 class="text-warning">${{ "%.2f"|format(total_monthly * 6) }}</h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>This Year</h6>
+                        <h4 class="text-success">${{ "%.2f"|format(total_yearly) }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryData = {{ category_costs|tojson }};
+    const categoryLabels = Object.keys(categoryData).map(key => key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const categoryValues = Object.values(categoryData);
+    
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                data: categoryValues,
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                    '#4BC0C0', '#FF6384'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Billing Cycle Chart
+    const cycleCtx = document.getElementById('cycleChart').getContext('2d');
+    const cycleData = {{ cycle_costs|tojson }};
+    const cycleLabels = Object.keys(cycleData).map(key => key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const cycleValues = Object.values(cycleData);
+    
+    new Chart(cycleCtx, {
+        type: 'bar',
+        data: {
+            labels: cycleLabels,
+            datasets: [{
+                label: 'Monthly Cost ($)',
+                data: cycleValues,
+                backgroundColor: '#007bff',
+                borderColor: '#0056b3',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

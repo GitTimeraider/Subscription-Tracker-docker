@@ -1,34 +1,132 @@
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from app.models import Subscription
+from app.models import Subscription, User, UserSettings
 from app import db
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
-def send_expiry_notification(app, subscription):
+def create_email_body(user, subscriptions):
+    """Create HTML email body for subscription notifications"""
+    
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .header {{ background-color: #007bff; color: white; padding: 20px; text-align: center; }}
+            .content {{ padding: 20px; }}
+            .subscription {{ background-color: #f8f9fa; border-left: 4px solid #007bff; margin: 10px 0; padding: 15px; }}
+            .urgent {{ border-left-color: #dc3545; }}
+            .warning {{ border-left-color: #ffc107; }}
+            .footer {{ background-color: #f8f9fa; padding: 15px; text-align: center; color: #666; }}
+            .cost {{ font-weight: bold; color: #007bff; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🔔 Subscription Expiry Notifications</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello {user.username},</p>
+            <p>You have {len(subscriptions)} subscription(s) expiring soon:</p>
+    """
+    
+    for subscription in subscriptions:
+        days_left = subscription.days_until_expiry()
+        
+        if days_left <= 3:
+            css_class = "subscription urgent"
+            urgency = "🚨 URGENT"
+        elif days_left <= 7:
+            css_class = "subscription warning"
+            urgency = "⚠️ WARNING"
+        else:
+            css_class = "subscription"
+            urgency = "ℹ️ NOTICE"
+        
+        html_body += f"""
+            <div class="{css_class}">
+                <h3>{urgency} - {subscription.name}</h3>
+                <p><strong>Company:</strong> {subscription.company}</p>
+                <p><strong>Category:</strong> {subscription.category or 'Not specified'}</p>
+                <p><strong>Cost:</strong> <span class="cost">${subscription.cost:.2f}</span> ({subscription.billing_cycle})</p>
+                <p><strong>Monthly Cost:</strong> <span class="cost">${subscription.get_monthly_cost():.2f}</span></p>
+                <p><strong>Expires in:</strong> {days_left} day(s) ({subscription.end_date})</p>
+                {f'<p><strong>Notes:</strong> {subscription.notes}</p>' if subscription.notes else ''}
+            </div>
+        """
+    
+    html_body += """
+        <p>Please review these subscriptions and renew them if you wish to continue.</p>
+        <p>You can manage your subscriptions by logging into your Subscription Tracker dashboard.</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated notification from your Subscription Tracker.</p>
+            <p>You can modify your notification preferences in your account settings.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html_body
+
+def send_expiry_notification(app, user, subscriptions):
+    """Send email notification for expiring subscriptions"""
     with app.app_context():
         if not all([app.config['MAIL_SERVER'], app.config['MAIL_USERNAME'], 
-                   app.config['MAIL_PASSWORD'], app.config['MAIL_FROM']]):
+                   app.config['MAIL_PASSWORD']]):
             print("Email configuration incomplete")
-            return
+            return False
 
-        subject = f"Subscription Expiry Notice: {subscription.name}"
-        body = f"""
-        Your subscription is expiring soon!
+        # Use user's email if available, otherwise use configured email
+        to_email = user.email or app.config['MAIL_USERNAME']
+        
+        subject = f"🔔 {len(subscriptions)} Subscription(s) Expiring Soon"
+        
+        # Create multipart message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = app.config['MAIL_FROM'] or app.config['MAIL_USERNAME']
+        msg['To'] = to_email
 
-        Subscription: {subscription.name}
-        Company: {subscription.company}
-        End Date: {subscription.end_date}
-        Monthly Cost: ${subscription.get_monthly_cost():.2f}
+        # Create plain text version
+        text_body = f"""
+        Hello {user.username},
 
-        Please renew your subscription if you wish to continue.
+        You have {len(subscriptions)} subscription(s) expiring soon:
+
+        """
+        
+        for subscription in subscriptions:
+            days_left = subscription.days_until_expiry()
+            text_body += f"""
+        - {subscription.name} ({subscription.company})
+          Expires in {days_left} day(s) on {subscription.end_date}
+          Cost: ${subscription.cost:.2f} ({subscription.billing_cycle})
+          Monthly Cost: ${subscription.get_monthly_cost():.2f}
+        
+        """
+        
+        text_body += """
+        Please review these subscriptions and renew them if you wish to continue.
+        You can manage your subscriptions by logging into your Subscription Tracker dashboard.
+        
+        This is an automated notification from your Subscription Tracker.
         """
 
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From'] = app.config['MAIL_FROM']
-        msg['To'] = app.config['MAIL_USERNAME']
+        # Create HTML version
+        html_body = create_email_body(user, subscriptions)
+
+        # Add both parts to the message
+        part1 = MIMEText(text_body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        
+        msg.attach(part1)
+        msg.attach(part2)
 
         try:
             with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as server:
@@ -37,34 +135,74 @@ def send_expiry_notification(app, subscription):
                 server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
                 server.send_message(msg)
 
-                subscription.last_notification = datetime.now().date()
+                # Update last notification date for all subscriptions
+                for subscription in subscriptions:
+                    subscription.last_notification = datetime.now().date()
                 db.session.commit()
+                
+                print(f"Notification sent to {user.username} for {len(subscriptions)} subscriptions")
+                return True
+                
         except Exception as e:
-            print(f"Failed to send email: {e}")
+            print(f"Failed to send email to {user.username}: {e}")
+            return False
 
 def check_expiring_subscriptions(app):
+    """Check for expiring subscriptions and send notifications"""
     with app.app_context():
-        days_before = app.config['DAYS_BEFORE_EXPIRY']
-        check_date = datetime.now().date() + timedelta(days=days_before)
+        # Get all users with notification settings
+        users = User.query.all()
+        
+        for user in users:
+            user_settings = user.settings or UserSettings()
+            
+            # Skip if user has disabled email notifications
+            if not user_settings.email_notifications:
+                continue
+                
+            days_before = user_settings.notification_days
+            check_date = datetime.now().date() + timedelta(days=days_before)
 
-        subscriptions = Subscription.query.filter(
-            Subscription.end_date <= check_date,
-            Subscription.end_date >= datetime.now().date(),
-            (Subscription.last_notification == None) | 
-            (Subscription.last_notification < datetime.now().date())
-        ).all()
+            # Find subscriptions that are:
+            # 1. Expiring within the notification window
+            # 2. Haven't been notified today
+            # 3. Are still active
+            subscriptions = Subscription.query.filter(
+                Subscription.user_id == user.id,
+                Subscription.is_active == True,
+                Subscription.end_date.isnot(None),
+                Subscription.end_date <= check_date,
+                Subscription.end_date >= datetime.now().date(),
+                (Subscription.last_notification == None) | 
+                (Subscription.last_notification < datetime.now().date())
+            ).all()
 
-        for subscription in subscriptions:
-            send_expiry_notification(app, subscription)
+            if subscriptions:
+                send_expiry_notification(app, user, subscriptions)
 
 def start_scheduler(app):
+    """Start the background scheduler for checking expiring subscriptions"""
     scheduler = BackgroundScheduler()
+    
+    # Check every 6 hours instead of daily for more timely notifications
     scheduler.add_job(
         func=lambda: check_expiring_subscriptions(app),
         trigger="interval",
-        hours=24,
+        hours=6,
         id='check_subscriptions',
         replace_existing=True
     )
+    
+    # Also add a daily job at 9 AM for primary notifications
+    scheduler.add_job(
+        func=lambda: check_expiring_subscriptions(app),
+        trigger="cron",
+        hour=9,
+        minute=0,
+        id='daily_check_subscriptions',
+        replace_existing=True
+    )
+    
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
+    print("Email notification scheduler started")

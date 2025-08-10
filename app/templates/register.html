@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Subscription Tracker{% endblock %}
+{% block title %}Register - Subscription Tracker{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,7 +8,7 @@
         <div class="card">
             <div class="card-header text-center">
                 <h2 class="mb-0">
-                    <i class="fas fa-credit-card me-2"></i>Login
+                    <i class="fas fa-user-plus me-2"></i>Register
                 </h2>
             </div>
             <div class="card-body">
@@ -28,6 +28,18 @@
                     </div>
                     
                     <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.email.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
                         {{ form.password.label(class="form-label") }}
                         {{ form.password(class="form-control") }}
                         {% if form.password.errors %}
@@ -39,9 +51,21 @@
                         {% endif %}
                     </div>
                     
+                    <div class="mb-3">
+                        {{ form.password2.label(class="form-label") }}
+                        {{ form.password2(class="form-control") }}
+                        {% if form.password2.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.password2.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                            <i class="fas fa-user-plus me-2"></i>Register
                         </button>
                     </div>
                 </form>
@@ -49,23 +73,11 @@
                 <hr>
                 
                 <div class="text-center">
-                    <p class="mb-0">Don't have an account?</p>
-                    <a href="{{ url_for('main.register') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-user-plus me-2"></i>Register
+                    <p class="mb-0">Already have an account?</p>
+                    <a href="{{ url_for('main.login') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
                     </a>
                 </div>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-body">
-                <h6 class="card-title">
-                    <i class="fas fa-info-circle me-2"></i>Demo Access
-                </h6>
-                <p class="card-text small text-muted">
-                    Default login: <strong>admin</strong> / <strong>changeme</strong><br>
-                    <em>Please change the password after first login!</em>
-                </p>
             </div>
         </div>
     </div>
