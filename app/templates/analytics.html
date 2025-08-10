@@ -174,74 +174,107 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Pass data from template to JavaScript -->
+<script id="chart-data" type="application/json">
+{
+    "categoryData": {{ category_costs|tojson|default('{}')|safe }},
+    "cycleData": {{ cycle_costs|tojson|default('{}')|safe }}
+}
+</script>
+
 <script>
+    // Get data from the JSON script tag
+    const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+    
     // Category Chart
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categoryData = {{ category_costs|tojson }};
-    const categoryLabels = Object.keys(categoryData).map(key => key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const categoryData = chartData.categoryData;
+    const categoryLabels = Object.keys(categoryData).map(key => 
+        key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+    );
     const categoryValues = Object.values(categoryData);
     
-    new Chart(categoryCtx, {
-        type: 'doughnut',
-        data: {
-            labels: categoryLabels,
-            datasets: [{
-                data: categoryValues,
-                backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
-                    '#4BC0C0', '#FF6384'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+    if (categoryLabels.length > 0) {
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryValues,
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                        '#4BC0C0', '#FF6384'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
-        }
-    });
+        });
+    } else {
+        // Show "No data" message in the canvas
+        const ctx = categoryCtx;
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#6c757d';
+        ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    }
 
     // Billing Cycle Chart
     const cycleCtx = document.getElementById('cycleChart').getContext('2d');
-    const cycleData = {{ cycle_costs|tojson }};
-    const cycleLabels = Object.keys(cycleData).map(key => key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const cycleData = chartData.cycleData;
+    const cycleLabels = Object.keys(cycleData).map(key => 
+        key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+    );
     const cycleValues = Object.values(cycleData);
     
-    new Chart(cycleCtx, {
-        type: 'bar',
-        data: {
-            labels: cycleLabels,
-            datasets: [{
-                label: 'Monthly Cost ($)',
-                data: cycleValues,
-                backgroundColor: '#007bff',
-                borderColor: '#0056b3',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + value.toFixed(2);
+    if (cycleLabels.length > 0) {
+        new Chart(cycleCtx, {
+            type: 'bar',
+            data: {
+                labels: cycleLabels,
+                datasets: [{
+                    label: 'Monthly Cost ($)',
+                    data: cycleValues,
+                    backgroundColor: '#007bff',
+                    borderColor: '#0056b3',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
                         }
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
                 }
             }
-        }
-    });
+        });
+    } else {
+        // Show "No data" message in the canvas
+        const ctx = cycleCtx;
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#6c757d';
+        ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    }
 </script>
 {% endblock %}
