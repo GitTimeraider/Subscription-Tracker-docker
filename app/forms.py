@@ -54,6 +54,12 @@ class SubscriptionForm(FlaskForm):
                                       ('custom', 'Custom')],
                                validators=[DataRequired()])
     custom_days = IntegerField('Custom Days', validators=[Optional(), NumberRange(min=1)])
+    custom_period_type = SelectField('Custom Period Type',
+                                   choices=[('days', 'Days'),
+                                          ('months', 'Months'),
+                                          ('years', 'Years')],
+                                   validators=[Optional()])
+    custom_period_value = IntegerField('Custom Period Value', validators=[Optional(), NumberRange(min=1)])
     payment_method_id = SelectField('Payment Method', coerce=int, validators=[Optional()])
     start_date = DateField('Start Date', validators=[DataRequired()])
     end_date = DateField('End Date (Leave blank for infinite)', validators=[Optional()])

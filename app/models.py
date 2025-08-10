@@ -53,7 +53,9 @@ class Subscription(db.Model):
     cost = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), default='USD')  # Currency of the subscription
     billing_cycle = db.Column(db.String(50), nullable=False)  # daily, weekly, monthly, yearly, custom
-    custom_days = db.Column(db.Integer)  # For custom billing cycles
+    custom_days = db.Column(db.Integer)  # For custom billing cycles (deprecated, use custom_period_value)
+    custom_period_type = db.Column(db.String(10), default='days')  # 'days', 'months', 'years'
+    custom_period_value = db.Column(db.Integer)  # For custom billing cycles
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)  # None means infinite
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -85,8 +87,16 @@ class Subscription(db.Model):
             monthly_cost = self.cost / 6  # Every 6 months
         elif self.billing_cycle == 'yearly':
             monthly_cost = self.cost / 12
-        elif self.billing_cycle == 'custom' and self.custom_days:
-            monthly_cost = (self.cost / self.custom_days) * 30.44  # Average days per month
+        elif self.billing_cycle == 'custom':
+            if self.custom_period_value and self.custom_period_type:
+                if self.custom_period_type == 'days':
+                    monthly_cost = (self.cost / self.custom_period_value) * 30.44  # Average days per month
+                elif self.custom_period_type == 'months':
+                    monthly_cost = self.cost / self.custom_period_value
+                elif self.custom_period_type == 'years':
+                    monthly_cost = self.cost / (self.custom_period_value * 12)
+            elif self.custom_days:  # Fallback for backward compatibility
+                monthly_cost = (self.cost / self.custom_days) * 30.44  # Average days per month
         
         # Convert currency if needed
         if target_currency and target_currency != self.currency and exchange_rates:
@@ -134,3 +144,23 @@ class Subscription(db.Model):
         from datetime import datetime
         delta = self.end_date - datetime.now().date()
         return delta.days if delta.days >= 0 else 0
+
+    def get_monthly_cost_in_currency(self, target_currency):
+        """Get monthly cost converted to target currency using currency converter"""
+        from app.currency import currency_converter
+        
+        monthly_cost = self.get_monthly_cost()
+        if not target_currency or target_currency == self.currency:
+            return monthly_cost
+        
+        return currency_converter.convert_amount(monthly_cost, self.currency or 'USD', target_currency)
+    
+    def get_yearly_cost_in_currency(self, target_currency):
+        """Get yearly cost converted to target currency using currency converter"""
+        from app.currency import currency_converter
+        
+        yearly_cost = self.get_yearly_cost()
+        if not target_currency or target_currency == self.currency:
+            return yearly_cost
+        
+        return currency_converter.convert_amount(yearly_cost, self.currency or 'USD', target_currency)

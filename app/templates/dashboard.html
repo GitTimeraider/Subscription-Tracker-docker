@@ -57,9 +57,19 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0"><i class="fas fa-list me-2"></i>Your Subscriptions</h2>
-        <a href="{{ url_for('main.add_subscription') }}" class="btn btn-light">
-            <i class="fas fa-plus me-1"></i>Add Subscription
-        </a>
+        <div class="d-flex gap-2">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchCurrency('USD')">
+                    <i class="fas fa-dollar-sign me-1"></i>USD
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchCurrency('EUR')">
+                    <i class="fas fa-euro-sign me-1"></i>EUR
+                </button>
+            </div>
+            <a href="{{ url_for('main.add_subscription') }}" class="btn btn-light">
+                <i class="fas fa-plus me-1"></i>Add Subscription
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <!-- Filters -->
@@ -148,7 +158,13 @@
                         </td>
                         <td>
                             {% if sub.billing_cycle == 'custom' %}
-                                <span class="badge bg-info">Every {{ sub.custom_days }} days</span>
+                                {% if sub.custom_period_value and sub.custom_period_type %}
+                                    <span class="badge bg-info">Every {{ sub.custom_period_value }} {{ sub.custom_period_type }}</span>
+                                {% elif sub.custom_days %}
+                                    <span class="badge bg-info">Every {{ sub.custom_days }} days</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Custom (undefined)</span>
+                                {% endif %}
                             {% else %}
                                 <span class="badge bg-primary">{{ sub.billing_cycle|title }}</span>
                             {% endif %}
@@ -241,6 +257,12 @@
 
     function clearFilters() {
         window.location.href = '{{ url_for("main.dashboard") }}';
+    }
+    
+    function switchCurrency(currency) {
+        const url = new URL(window.location);
+        url.searchParams.set('currency', currency);
+        window.location.href = url.toString();
     }
 </script>
 {% endblock %}

@@ -85,15 +85,17 @@ def dashboard():
     
     # Get user settings for currency conversion
     user_settings = current_user.settings or UserSettings()
-    user_currency = user_settings.currency
+    
+    # Allow currency override from URL parameter
+    display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
     if user_settings.fixer_api_key:
         currency_converter.set_api_key(user_settings.fixer_api_key)
     
-    # Calculate totals in user's preferred currency
-    total_monthly = sum(sub.get_monthly_cost_in_currency(user_currency) for sub in subscriptions if sub.is_active)
-    total_yearly = sum(sub.get_yearly_cost_in_currency(user_currency) for sub in subscriptions if sub.is_active)
+    # Calculate totals in display currency
+    total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
+    total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     
     # Get categories for filter
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
@@ -104,7 +106,7 @@ def dashboard():
                     if sub.is_expiring_soon(user_settings.notification_days)]
     
     # Get currency symbol for display
-    currency_symbol = currency_converter.get_currency_symbol(user_currency)
+    currency_symbol = currency_converter.get_currency_symbol(display_currency)
     
     return render_template('dashboard.html', 
                          subscriptions=subscriptions,
@@ -114,7 +116,7 @@ def dashboard():
                          current_category=category_filter,
                          current_status=status_filter,
                          expiring_soon=expiring_soon,
-                         user_currency=user_currency,
+                         user_currency=display_currency,
                          currency_symbol=currency_symbol)
 
 @main.route('/add_subscription', methods=['GET', 'POST'])
@@ -132,6 +134,8 @@ def add_subscription():
             currency=form.currency.data,
             billing_cycle=form.billing_cycle.data,
             custom_days=form.custom_days.data if form.billing_cycle.data == 'custom' else None,
+            custom_period_type=form.custom_period_type.data if form.billing_cycle.data == 'custom' else None,
+            custom_period_value=form.custom_period_value.data if form.billing_cycle.data == 'custom' else None,
             payment_method_id=payment_method_id,
             start_date=form.start_date.data,
             end_date=form.end_date.data,
@@ -163,6 +167,8 @@ def edit_subscription(id):
         subscription.currency = form.currency.data
         subscription.billing_cycle = form.billing_cycle.data
         subscription.custom_days = form.custom_days.data if form.billing_cycle.data == 'custom' else None
+        subscription.custom_period_type = form.custom_period_type.data if form.billing_cycle.data == 'custom' else None
+        subscription.custom_period_value = form.custom_period_value.data if form.billing_cycle.data == 'custom' else None
         subscription.payment_method_id = payment_method_id
         subscription.start_date = form.start_date.data
         subscription.end_date = form.end_date.data
@@ -281,7 +287,9 @@ def analytics():
     
     # Get user settings for currency conversion
     user_settings = current_user.settings or UserSettings()
-    user_currency = user_settings.currency
+    
+    # Allow currency override from URL parameter
+    display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
     if user_settings.fixer_api_key:
@@ -289,8 +297,8 @@ def analytics():
     
     # Calculate analytics
     active_subs = [s for s in subscriptions if s.is_active]
-    total_monthly = sum(sub.get_monthly_cost_in_currency(user_currency) for sub in active_subs)
-    total_yearly = sum(sub.get_yearly_cost_in_currency(user_currency) for sub in active_subs)
+    total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in active_subs)
+    total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in active_subs)
     
     # Category breakdown
     category_costs = {}
@@ -298,7 +306,7 @@ def analytics():
         category = sub.category or 'other'
         if category not in category_costs:
             category_costs[category] = 0
-        category_costs[category] += sub.get_monthly_cost_in_currency(user_currency)
+        category_costs[category] += sub.get_monthly_cost_in_currency(display_currency)
     
     # Billing cycle breakdown
     cycle_costs = {}
@@ -306,7 +314,7 @@ def analytics():
         cycle = sub.billing_cycle
         if cycle not in cycle_costs:
             cycle_costs[cycle] = 0
-        cycle_costs[cycle] += sub.get_monthly_cost_in_currency(user_currency)
+        cycle_costs[cycle] += sub.get_monthly_cost_in_currency(display_currency)
     
     # Upcoming renewals
     upcoming = []
@@ -322,7 +330,7 @@ def analytics():
     upcoming.sort(key=lambda x: x['days_left'])
     
     # Get currency symbol for display
-    currency_symbol = currency_converter.get_currency_symbol(user_currency)
+    currency_symbol = currency_converter.get_currency_symbol(display_currency)
     
     return render_template('analytics.html',
                          total_monthly=total_monthly,
@@ -332,7 +340,7 @@ def analytics():
                          upcoming=upcoming,
                          active_count=len(active_subs),
                          total_count=len(subscriptions),
-                         user_currency=user_currency,
+                         user_currency=display_currency,
                          currency_symbol=currency_symbol)
 
 @main.route('/api/subscription_data')
@@ -343,7 +351,9 @@ def api_subscription_data():
     
     # Get user settings for currency conversion
     user_settings = current_user.settings or UserSettings()
-    user_currency = user_settings.currency
+    
+    # Allow currency override from URL parameter
+    display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
     if user_settings.fixer_api_key:
@@ -354,7 +364,7 @@ def api_subscription_data():
         category = sub.category or 'other'
         if category not in category_data:
             category_data[category] = 0
-        category_data[category] += sub.get_monthly_cost_in_currency(user_currency)
+        category_data[category] += sub.get_monthly_cost_in_currency(display_currency)
     
     return jsonify(category_data)
 
