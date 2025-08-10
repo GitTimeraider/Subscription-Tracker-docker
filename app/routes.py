@@ -7,7 +7,7 @@ from datetime import datetime
 
 main = Blueprint('main', __name__)
 
-@main.route('/')
+@main.route('/', methods=['GET', 'POST'])
 @main.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
