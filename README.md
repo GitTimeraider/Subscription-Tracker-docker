@@ -4,7 +4,7 @@ UNDER DEVELOPMENT! NOT READY FOR USAGE
   <img src="https://github.com/GitTimeraider/Assets/blob/main/img/Subscription-Tracker/icon_sub.png" />
 </p>
 
-# 🔔 Subscription Tracker
+# 🔔 Subscription Tracker (Dockerized)
 
 Welcome to the most wonderfully comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
@@ -217,6 +217,7 @@ Visit the **Analytics** page to see:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
