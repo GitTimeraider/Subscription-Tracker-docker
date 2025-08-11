@@ -6,7 +6,7 @@ UNDER DEVELOPMENT! NOT READY FOR USAGE
 
 # 🔔 Subscription Tracker
 
-Welcome to the most wonderfully comprehensive way to track your subscriptions! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
+Welcome to the most wonderfully comprehensive way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
 ## ✨ Features
 
@@ -217,6 +217,7 @@ Visit the **Analytics** page to see:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
