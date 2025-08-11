@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
@@ -39,13 +39,57 @@ class UserSettings(db.Model):
     # General settings
     currency = db.Column(db.String(3), default='EUR')
     timezone = db.Column(db.String(50), default='UTC')
-    fixer_api_key = db.Column(db.String(100))
+    unirate_api_key = db.Column(db.String(100))  # Changed from fixer_api_key
     
     # Relationship
     user = db.relationship('User', backref=db.backref('settings', uselist=False))
 
     def __repr__(self):
         return f'<UserSettings {self.user_id}>'
+
+class ExchangeRate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, unique=True)
+    base_currency = db.Column(db.String(3), nullable=False, default='EUR')
+    rates_json = db.Column(db.Text, nullable=False)  # JSON string of exchange rates
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ExchangeRate {self.date} base:{self.base_currency}>'
+    
+    @classmethod
+    def get_latest_rates(cls, base_currency='EUR'):
+        """Get the latest exchange rates for today"""
+        today = date.today()
+        rate_record = cls.query.filter_by(date=today, base_currency=base_currency).first()
+        if rate_record:
+            import json
+            return json.loads(rate_record.rates_json)
+        return None
+    
+    @classmethod
+    def save_rates(cls, rates, base_currency='EUR'):
+        """Save exchange rates for today"""
+        import json
+        today = date.today()
+        
+        # Check if rates for today already exist
+        existing_rate = cls.query.filter_by(date=today, base_currency=base_currency).first()
+        
+        if existing_rate:
+            # Update existing rates
+            existing_rate.rates_json = json.dumps(rates)
+            existing_rate.created_at = datetime.utcnow()
+        else:
+            # Create new rate record
+            new_rate = cls(
+                date=today,
+                base_currency=base_currency,
+                rates_json=json.dumps(rates)
+            )
+            db.session.add(new_rate)
+        
+        db.session.commit()
 
 class PaymentMethod(db.Model):
     id = db.Column(db.Integer, primary_key=True)

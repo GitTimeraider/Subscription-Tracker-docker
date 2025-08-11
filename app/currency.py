@@ -1,85 +1,100 @@
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from flask import current_app
 import os
 
 class CurrencyConverter:
     def __init__(self):
         self.api_key = None
-        self.cache = {}
-        self.cache_duration = timedelta(hours=1)  # Cache for 1 hour
         
     def set_api_key(self, api_key):
-        """Set the APILayer API key"""
+        """Set the UniRateAPI API key"""
         self.api_key = api_key
     
     def get_exchange_rates(self, base_currency='EUR'):
-        """Get exchange rates from APILayer API with caching"""
+        """Get exchange rates with daily caching using database storage"""
+        from app.models import ExchangeRate
+        
+        # First, try to get today's rates from database
+        cached_rates = ExchangeRate.get_latest_rates(base_currency)
+        if cached_rates:
+            current_app.logger.info(f"Using cached exchange rates for {date.today()}")
+            return cached_rates
+        
+        # If no cached rates for today, fetch from API
         if not self.api_key:
-            return None
+            current_app.logger.warning("No UniRateAPI key provided, using fallback rates")
+            return self._get_fallback_rates(base_currency)
             
-        cache_key = f"{base_currency}_{datetime.now().strftime('%Y%m%d%H')}"
-        
-        # Check cache first
-        if cache_key in self.cache:
-            cache_data = self.cache[cache_key]
-            if datetime.now() - cache_data['timestamp'] < self.cache_duration:
-                return cache_data['rates']
-        
         try:
-            # APILayer (formerly Fixer.io) API endpoint
-            url = f"https://api.apilayer.com/fixer/latest"
+            # UniRateAPI endpoint
+            url = f"https://api.unirateapi.com/v1/latest?base={base_currency}"
             headers = {
-                'apikey': self.api_key
-            }
-            params = {
-                'base': base_currency,
-                'symbols': 'USD,EUR,GBP,CAD,AUD,JPY,CHF,CNY,INR,SEK,NOK,DKK,PLN,CZK,HUF,BGN,RON,HRK,RUB,TRY,BRL,MXN,SGD,HKD,KRW,ZAR,NZD,THB,MYR,PHP,IDR,VND'
+                'Authorization': f'Bearer {self.api_key}'
             }
             
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            current_app.logger.info(f"Fetching fresh exchange rates from UniRateAPI for base: {base_currency}")
+            response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             
             data = response.json()
             
-            if data.get('success'):
+            if data.get('success', True):  # UniRateAPI uses 'success' field
                 rates = data.get('rates', {})
                 # Add base currency to rates
                 rates[base_currency] = 1.0
                 
-                # Cache the result
-                self.cache[cache_key] = {
-                    'rates': rates,
-                    'timestamp': datetime.now()
-                }
-                
-                # Clean old cache entries
-                self._clean_cache()
+                # Save to database for daily caching
+                ExchangeRate.save_rates(rates, base_currency)
+                current_app.logger.info(f"Successfully fetched and cached {len(rates)} exchange rates")
                 
                 return rates
             else:
-                current_app.logger.error(f"APILayer API error: {data.get('error', {}).get('info', 'Unknown error')}")
-                return None
+                error_msg = data.get('error', {}).get('message', 'Unknown error')
+                current_app.logger.error(f"UniRateAPI error: {error_msg}")
+                return self._get_fallback_rates(base_currency)
                 
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Currency API request failed: {e}")
-            return None
+            return self._get_fallback_rates(base_currency)
         except Exception as e:
             current_app.logger.error(f"Currency conversion error: {e}")
-            return None
+            return self._get_fallback_rates(base_currency)
     
-    def _clean_cache(self):
-        """Clean old cache entries"""
-        current_time = datetime.now()
-        keys_to_remove = []
+    def _get_fallback_rates(self, base_currency='EUR'):
+        """Get fallback exchange rates when API is unavailable"""
+        from app.models import ExchangeRate
         
-        for key, data in self.cache.items():
-            if current_time - data['timestamp'] > self.cache_duration:
-                keys_to_remove.append(key)
+        # Try to get the most recent rates from database (any date)
+        latest_rate = ExchangeRate.query.filter_by(base_currency=base_currency).order_by(ExchangeRate.date.desc()).first()
+        if latest_rate:
+            current_app.logger.info(f"Using fallback rates from {latest_rate.date}")
+            return json.loads(latest_rate.rates_json)
         
-        for key in keys_to_remove:
-            del self.cache[key]
+        # If no database rates available, use hardcoded fallback rates (approximate values)
+        current_app.logger.warning("Using hardcoded fallback exchange rates")
+        if base_currency == 'EUR':
+            return {
+                'EUR': 1.0, 'USD': 1.09, 'GBP': 0.86, 'CAD': 1.48, 'AUD': 1.65,
+                'JPY': 157.0, 'CHF': 0.96, 'CNY': 7.85, 'INR': 91.0, 'SEK': 11.3,
+                'NOK': 11.8, 'DKK': 7.46, 'PLN': 4.35, 'CZK': 24.7, 'HUF': 390.0,
+                'BGN': 1.96, 'RON': 4.97, 'HRK': 7.53, 'RUB': 100.0, 'TRY': 32.0,
+                'BRL': 6.15, 'MXN': 18.5, 'SGD': 1.45, 'HKD': 8.5, 'KRW': 1450.0,
+                'ZAR': 19.8, 'NZD': 1.78, 'THB': 38.5, 'MYR': 5.0, 'PHP': 61.0,
+                'IDR': 16800.0, 'VND': 26500.0
+            }
+        else:
+            # For other base currencies, convert from EUR base
+            eur_rates = self._get_fallback_rates('EUR')
+            if base_currency in eur_rates:
+                base_rate = eur_rates[base_currency]
+                converted_rates = {}
+                for currency, rate in eur_rates.items():
+                    converted_rates[currency] = rate / base_rate
+                return converted_rates
+            else:
+                return {base_currency: 1.0}
     
     def convert_amount(self, amount, from_currency, to_currency):
         """Convert amount from one currency to another"""

@@ -96,8 +96,8 @@ def dashboard():
     display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
-    if user_settings.fixer_api_key:
-        currency_converter.set_api_key(user_settings.fixer_api_key)
+    if user_settings.unirate_api_key:
+        currency_converter.set_api_key(user_settings.unirate_api_key)
     
     # Calculate totals in display currency
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
@@ -269,7 +269,7 @@ def general_settings():
             settings = current_user.settings
             
         settings.currency = form.currency.data
-        settings.fixer_api_key = form.fixer_api_key.data
+        settings.unirate_api_key = form.unirate_api_key.data
         settings.timezone = form.timezone.data
         
         db.session.commit()
@@ -316,8 +316,8 @@ def analytics():
     display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
-    if user_settings.fixer_api_key:
-        currency_converter.set_api_key(user_settings.fixer_api_key)
+    if user_settings.unirate_api_key:
+        currency_converter.set_api_key(user_settings.unirate_api_key)
     
     # Calculate analytics
     active_subs = [s for s in subscriptions if s.is_active]
@@ -380,8 +380,8 @@ def api_subscription_data():
     display_currency = request.args.get('currency', user_settings.currency)
     
     # Set up currency converter with user's API key if available
-    if user_settings.fixer_api_key:
-        currency_converter.set_api_key(user_settings.fixer_api_key)
+    if user_settings.unirate_api_key:
+        currency_converter.set_api_key(user_settings.unirate_api_key)
     
     category_data = {}
     for sub in subscriptions:
