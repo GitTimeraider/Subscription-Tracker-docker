@@ -2,7 +2,7 @@
 UNDER DEVELOPMENT! NOT READY FOR USAGE
 
 <p align="center">
-  <img src="img/icon_sub.png" />
+  <img src="https://github.com/GitTimeraider/Assets/blob/main/img/Subscription-Tracker/icon_sub.png" />
 </p>
 
 
