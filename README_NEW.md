@@ -63,9 +63,30 @@ Welcome to the most wonderfully comprehensive way to track your subscriptions! T
 - Pre-built images available on GitHub Container Registry
 - Environment variable configuration
 
-## 🚀 Quick Start
+## 🐳 Docker Deployment
 
-### Using Docker (Recommended)
+### Using Docker Compose
+```yaml
+version: '3.8'
+services:
+  web:
+    image: ghcr.io/gittimeraider/subscription-tracker:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USE_TLS=${MAIL_USE_TLS}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM}
+      - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
+    volumes:
+      - ./data:/app/instance
+```
+
+### Using Docker
 
 1. **Pull the image from GitHub Container Registry:**
    ```bash
@@ -87,36 +108,6 @@ Welcome to the most wonderfully comprehensive way to track your subscriptions! T
    - Navigate to `http://localhost:5000`
    - Default credentials: `admin` / `changeme`
    - **⚠️ Change the default password immediately!**
-
-### Local Development
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/gittimeraider/subscription-tracker.git
-   cd subscription-tracker
-   ```
-
-2. **Set up virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-5. **Run the application:**
-   ```bash
-   python run.py
-   ```
 
 ## ⚙️ Configuration
 
@@ -198,34 +189,6 @@ Visit the **Analytics** page to see:
 - Upcoming renewals
 - Cost projections
 
-## 🐳 Docker Deployment
-
-### Building the Image
-```bash
-docker build -t subscription-tracker .
-```
-
-### Using Docker Compose
-```yaml
-version: '3.8'
-services:
-  web:
-    image: ghcr.io/gittimeraider/subscription-tracker:latest
-    ports:
-      - "5000:5000"
-    environment:
-      - SECRET_KEY=${SECRET_KEY}
-      - MAIL_SERVER=${MAIL_SERVER}
-      - MAIL_PORT=${MAIL_PORT}
-      - MAIL_USE_TLS=${MAIL_USE_TLS}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
-      - MAIL_FROM=${MAIL_FROM}
-      - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
-    volumes:
-      - ./data:/app/instance
-```
-
 ## 🔒 Security Considerations
 
 - **🚨 Change the default admin password immediately** after first login
@@ -233,33 +196,6 @@ services:
 - Set a secure `SECRET_KEY` in production
 - Use app-specific passwords for email accounts (especially Gmail)
 - Keep your environment variables secure and never commit them to version control
-
-## 🛠️ Development
-
-### Project Structure
-```
-subscription-tracker/
-├── app/
-│   ├── __init__.py          # App factory
-│   ├── models.py            # Database models
-│   ├── routes.py            # Application routes
-│   ├── forms.py             # WTForms
-│   ├── email.py             # Email notifications
-│   └── templates/           # Jinja2 templates
-├── config.py                # Configuration
-├── requirements.txt         # Python dependencies
-├── run.py                  # Application entry point
-├── Dockerfile              # Docker configuration
-└── docker-compose.yml      # Docker Compose setup
-```
-
-### Adding New Features
-
-1. **Models**: Add new database models in `models.py`
-2. **Forms**: Create forms in `forms.py`
-3. **Routes**: Add new routes in `routes.py`
-4. **Templates**: Create HTML templates in `templates/`
-5. **Database**: Run migrations by restarting the app (auto-migration enabled)
 
 ## 🐛 Troubleshooting
 
@@ -275,27 +211,12 @@ subscription-tracker/
 3. Restart the application to recreate the database
 
 ### Performance Issues
-1. Consider using PostgreSQL for production instead of SQLite
-2. Monitor system resources if running many subscriptions
-3. Check email server response times
+1. Monitor system resources if running many subscriptions
+2. Check email server response times
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📞 Support
-
-For support, questions, or feature requests, please open an issue on GitHub.
-
----
-
-**Happy subscription tracking!** 🎉
 
