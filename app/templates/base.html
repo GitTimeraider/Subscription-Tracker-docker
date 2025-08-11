@@ -6,7 +6,10 @@
     <title>{% block title %}Subscription Tracker{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Favicon links for better browser compatibility -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='assets/img/icon_main.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='assets/img/icon_main.ico') }}">
+    <link rel="icon" type="image/vnd.microsoft.icon" href="{{ url_for('static', filename='assets/img/icon_main.ico') }}">
     <style>
         :root {
             --primary-color: #007bff;

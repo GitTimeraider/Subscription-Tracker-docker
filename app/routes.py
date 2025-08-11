@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod
@@ -9,6 +9,12 @@ from datetime import datetime, timedelta
 import os
 
 main = Blueprint('main', __name__)
+
+@main.route('/favicon.ico')
+def favicon():
+    """Serve favicon directly"""
+    return send_from_directory(os.path.join(main.root_path, '..', 'static', 'assets', 'img'),
+                               'icon_main.ico', mimetype='image/vnd.microsoft.icon')
 
 @main.route('/', methods=['GET', 'POST'])
 @main.route('/login', methods=['GET', 'POST'])
