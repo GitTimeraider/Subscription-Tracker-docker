@@ -1,7 +1,7 @@
 UNDER DEVELOPMENT! NOT READY FOR USAGE
 
 <p align="center">
-  <img src="img/icon_sub.png" />
+  <img src="https://github.com/GitTimeraider/Assets/blob/main/img/Subscription-Tracker/icon_sub.png" />
 </p>
 
 # 🔔 Subscription Tracker
@@ -298,3 +298,4 @@ For support, questions, or feature requests, please open an issue on GitHub.
 ---
 
 **Happy subscription tracking!** 🎉
+
