@@ -392,6 +392,27 @@ def api_subscription_data():
     
     return jsonify(category_data)
 
+@main.route('/debug/refresh_rates')
+@login_required
+def debug_refresh_rates():
+    """Force refresh exchange rates and return a small diagnostic payload (admin/dev use)."""
+    user_settings = current_user.settings or UserSettings()
+    if user_settings.unirate_api_key:
+        currency_converter.set_api_key(user_settings.unirate_api_key)
+    # Clear today's cache and refetch
+    currency_converter.clear_today_cache('EUR')
+    rates = currency_converter.get_exchange_rates('EUR', force_refresh=True) or {}
+    sample = {
+        'EUR->USD': currency_converter.convert_amount(1, 'EUR', 'USD', rates=rates),
+        'USD->EUR': currency_converter.convert_amount(1, 'USD', 'EUR', rates=rates),
+        'EUR->GBP': currency_converter.convert_amount(1, 'EUR', 'GBP', rates=rates) if 'GBP' in rates else None,
+    }
+    return jsonify({
+        'count': len(rates),
+        'usd_rate_raw': rates.get('USD'),
+        'sample_conversions': sample
+    })
+
 @main.route('/payment_methods')
 @login_required
 def payment_methods():

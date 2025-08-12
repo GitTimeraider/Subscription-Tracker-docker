@@ -12,15 +12,21 @@ class CurrencyConverter:
         """Set the UniRateAPI API key"""
         self.api_key = api_key
     
-    def get_exchange_rates(self, base_currency='EUR'):
-        """Get exchange rates with daily caching using database storage"""
+    def get_exchange_rates(self, base_currency='EUR', force_refresh=False):
+        """Get exchange rates with daily caching using database storage.
+
+        Parameters:
+            base_currency (str): desired base (we standardize on EUR)
+            force_refresh (bool): if True, bypass today's cache and refetch from API
+        """
         from app.models import ExchangeRate
         
-        # First, try to get today's rates from database
-        cached_rates = ExchangeRate.get_latest_rates(base_currency)
-        if cached_rates:
-            current_app.logger.info(f"Using cached exchange rates for {date.today()}")
-            return cached_rates
+        # First, try to get today's rates from database unless forcing refresh
+        if not force_refresh:
+            cached_rates = ExchangeRate.get_latest_rates(base_currency)
+            if cached_rates:
+                current_app.logger.debug(f"Using cached exchange rates for {date.today()} (base {base_currency})")
+                return cached_rates
         
         # If no cached rates for today, fetch from API
         if not self.api_key:
@@ -41,8 +47,23 @@ class CurrencyConverter:
             data = response.json()
             
             if data.get('success', True):  # UniRateAPI uses 'success' field
-                rates = data.get('rates', {})
-                # Add base currency to rates
+                rates = data.get('rates', {}) or {}
+
+                # Heuristic orientation check: for EUR base, USD rate should normally be ~1.0-1.3
+                usd_rate = rates.get('USD')
+                if base_currency == 'EUR' and usd_rate:
+                    if usd_rate < 0.5:  # Likely inverted (i.e. actually EUR per USD)
+                        current_app.logger.warning("Detected possibly inverted rate orientation; inverting all fetched rates")
+                        try:
+                            inverted = {}
+                            for c, r in rates.items():
+                                if r not in (0, None):
+                                    inverted[c] = 1/float(r)
+                            rates = inverted
+                        except Exception as inv_e:
+                            current_app.logger.error(f"Failed to invert rates: {inv_e}")
+
+                # Add base currency to rates explicitly
                 rates[base_currency] = 1.0
                 
                 # Save to database for daily caching
@@ -138,6 +159,21 @@ class CurrencyConverter:
             return amount_in_base * rates[to_currency]
         except (KeyError, ZeroDivisionError, TypeError):
             return amount
+
+    def clear_today_cache(self, base_currency='EUR'):
+        """Clear today's cached rates to force a refetch next call."""
+        try:
+            from app.models import ExchangeRate
+            from app import db
+            today_record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).first()
+            if today_record:
+                db.session.delete(today_record)
+                db.session.commit()
+                current_app.logger.info(f"Cleared today's exchange rate cache for base {base_currency}")
+                return True
+        except Exception as e:
+            current_app.logger.error(f"Failed to clear cache: {e}")
+        return False
     
     def get_supported_currencies(self):
         """Get list of supported currencies with EUR at the top"""
