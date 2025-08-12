@@ -15,14 +15,14 @@
         {% set theme_mode = current_user.settings.theme_mode or 'light' %}
         {% set accent_color = current_user.settings.accent_color or 'purple' %}
     {% else %}
-        {% set theme_mode = 'light' %}
+        {% set theme_mode = 'dark' %}
         {% set accent_color = 'purple' %}
     {% endif %}
     
     <script>
         // Theme detection for non-authenticated users
         function getStoredTheme() {
-            return localStorage.getItem('theme') || 'light';
+            return localStorage.getItem('theme') || 'dark';
         }
         
         function getStoredAccentColor() {
@@ -92,16 +92,16 @@
                 --shadow-color: rgba(0,0,0,.1);
                 {% endif %}
             {% else %}
-                /* Default light theme - will be overridden by JavaScript */
-                --bg-color: #f8f9fa;
-                --card-bg: #ffffff;
-                --text-color: #212529;
-                --text-muted: #6c757d;
-                --border-color: #e9ecef;
+                /* Default dark theme - will be overridden by JavaScript */
+                --bg-color: #1a1a1a;
+                --card-bg: #2d2d2d;
+                --text-color: #ffffff;
+                --text-muted: #aaaaaa;
+                --border-color: #404040;
                 --navbar-bg: var(--primary-color);
-                --input-bg: #ffffff;
-                --input-border: #e9ecef;
-                --shadow-color: rgba(0,0,0,.1);
+                --input-bg: #3d3d3d;
+                --input-border: #555555;
+                --shadow-color: rgba(0,0,0,.3);
             {% endif %}
             
             /* Other color variables */
