@@ -88,7 +88,9 @@ def dashboard():
     display_currency = request.args.get('currency', user_settings.currency)
     # Apply preferred provider priority early (before any rate fetch inside subscription helpers)
     if user_settings.preferred_rate_provider:
-        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
+        defaults = ['exchangerate_host','frankfurter','ecb']
+        priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
@@ -106,7 +108,8 @@ def dashboard():
                          expiring_soon=expiring_soon,
                          user_currency=display_currency,
                          currency_symbol=currency_symbol,
-                         rate_provider=active_provider)
+                         rate_provider=active_provider,
+                         requested_provider=user_settings.preferred_rate_provider)
 
 @main.route('/add_subscription', methods=['GET', 'POST'])
 @login_required
@@ -231,12 +234,15 @@ def general_settings():
     form = GeneralSettingsForm(obj=settings)
     # Apply user preferred provider before fetching
     if settings.preferred_rate_provider:
-        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
+        defaults = ['exchangerate_host','frankfurter','ecb']
+        priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     # Fetch rates AFTER applying provider preference
     rates = currency_converter.get_exchange_rates('EUR') or {}
     latest_record = ExchangeRate.query.filter_by(base_currency='EUR', provider=currency_converter.last_provider).order_by(ExchangeRate.created_at.desc()).first()
     last_updated = latest_record.created_at if latest_record else None
 
+    original_provider_pref = settings.preferred_rate_provider
     if form.validate_on_submit():
         if not current_user.settings:
             settings = UserSettings(user_id=current_user.id)
@@ -247,12 +253,21 @@ def general_settings():
         settings.timezone = form.timezone.data
         settings.preferred_rate_provider = form.preferred_rate_provider.data
         db.session.commit()
+        # If provider changed, clear today's cache and force fetch
+        if settings.preferred_rate_provider and settings.preferred_rate_provider != original_provider_pref:
+            currency_converter.clear_today_cache('EUR')
+            defaults = ['exchangerate_host','frankfurter','ecb']
+            priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
+            os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
+            currency_converter.get_exchange_rates('EUR', force_refresh=True)
+            if currency_converter.last_provider != settings.preferred_rate_provider:
+                flash(f"Preferred provider '{settings.preferred_rate_provider}' unavailable; using '{currency_converter.last_provider}'.", 'warning')
         flash('General settings updated successfully!', 'success')
         return redirect(url_for('main.general_settings'))
     # If provider set, ensure form reflects it
     if settings.preferred_rate_provider:
         form.preferred_rate_provider.data = settings.preferred_rate_provider
-    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider, currency_converter=currency_converter)
+    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider, currency_converter=currency_converter, requested_provider=settings.preferred_rate_provider)
 
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required
@@ -283,7 +298,9 @@ def analytics():
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
     if user_settings.preferred_rate_provider:
-        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
+        defaults = ['exchangerate_host','frankfurter','ecb']
+        priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     active_subs = [s for s in subscriptions if s.is_active]
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in active_subs)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in active_subs)
@@ -327,7 +344,9 @@ def api_subscription_data():
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
     if user_settings.preferred_rate_provider:
-        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
+        defaults = ['exchangerate_host','frankfurter','ecb']
+        priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     category_data = {}
     for sub in subscriptions:
         category = sub.category or 'other'
@@ -352,8 +371,15 @@ def debug_refresh_rates():
 @login_required
 def refresh_rates():
     """Force refresh exchange rates and redirect back to general settings."""
+    settings = current_user.settings or UserSettings()
+    if settings.preferred_rate_provider:
+        defaults = ['exchangerate_host','frankfurter','ecb']
+        priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     currency_converter.clear_today_cache('EUR')
     rates = currency_converter.get_exchange_rates('EUR', force_refresh=True) or {}
+    if settings.preferred_rate_provider and currency_converter.last_provider != settings.preferred_rate_provider:
+        flash(f"Preferred provider '{settings.preferred_rate_provider}' unavailable; using '{currency_converter.last_provider}'.", 'warning')
     usd = rates.get('USD')
     gbp = rates.get('GBP')
     flash(f'Exchange rates refreshed. EUR->USD: {usd}, EUR->GBP: {gbp}', 'success')
