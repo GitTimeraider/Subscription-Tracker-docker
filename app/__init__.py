@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, g, request
+import time
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
@@ -38,8 +39,30 @@ def create_app():
             print("Default admin user created: username='admin', password='changeme'")
             print("Please change the default password immediately!")
 
-    # Start scheduler for email notifications
-    from app.email import start_scheduler
-    start_scheduler(app)
+    # Defer scheduler start until first real request to avoid slowing cold login page
+    @app.before_first_request
+    def _start_scheduler_once():
+        if not getattr(app, '_scheduler_started', False):
+            from app.email import start_scheduler
+            start_scheduler(app)
+            app._scheduler_started = True
+
+    # Lightweight request timing (enabled when PERFORMANCE_LOGGING=1)
+    @app.before_request
+    def _perf_timer_start():
+        if app.config.get('PERFORMANCE_LOGGING') or request.environ.get('PERFORMANCE_LOGGING'):
+            g._req_start_ts = time.time()
+
+    @app.after_request
+    def _perf_timer_end(response):
+        start_ts = getattr(g, '_req_start_ts', None)
+        if start_ts is not None:
+            elapsed_ms = (time.time() - start_ts) * 1000
+            # Only log slow requests > 200ms
+            if elapsed_ms > 200:
+                app.logger.warning(f"Slow request {request.method} {request.path} took {elapsed_ms:.1f} ms")
+            else:
+                app.logger.debug(f"Request {request.method} {request.path} {elapsed_ms:.1f} ms")
+        return response
 
     return app

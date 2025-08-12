@@ -137,6 +137,7 @@ services:
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
 | `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
 | `PGID` | Host group ID to run the app process as | 1000 |
+| `PERFORMANCE_LOGGING` | Set to 1 to log slow (>200ms) requests with timing | (unset) |
 
 ### Exchange Rate Providers
 
