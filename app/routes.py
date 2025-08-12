@@ -1,11 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
-from app.models import User, Subscription, UserSettings, PaymentMethod
+from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate
 from app.forms import (LoginForm, RegistrationForm, SubscriptionForm, UserSettingsForm, 
                       NotificationSettingsForm, GeneralSettingsForm, EmailSettingsForm, PaymentMethodForm)
 from app.currency import currency_converter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 
 main = Blueprint('main', __name__)
@@ -225,6 +225,12 @@ def notification_settings():
 def general_settings():
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = GeneralSettingsForm(obj=settings)
+    # Fetch current (possibly cached) EUR-based rates for display transparency
+    rates = currency_converter.get_exchange_rates('EUR') or {}
+    # Determine last update timestamp
+    latest_record = ExchangeRate.query.filter_by(base_currency='EUR').order_by(ExchangeRate.created_at.desc()).first()
+    last_updated = latest_record.created_at if latest_record else None
+
     if form.validate_on_submit():
         if not current_user.settings:
             settings = UserSettings(user_id=current_user.id)
@@ -236,7 +242,7 @@ def general_settings():
         db.session.commit()
         flash('General settings updated successfully!', 'success')
         return redirect(url_for('main.general_settings'))
-    return render_template('general_settings.html', form=form)
+    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated)
 
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required
@@ -325,6 +331,17 @@ def debug_refresh_rates():
         'EUR->GBP': currency_converter.convert_amount(1, 'EUR', 'GBP', rates=rates) if 'GBP' in rates else None,
     }
     return jsonify({'count': len(rates),'usd_rate_raw': rates.get('USD'),'sample_conversions': sample})
+
+@main.route('/refresh_rates', methods=['POST'])
+@login_required
+def refresh_rates():
+    """Force refresh exchange rates and redirect back to general settings."""
+    currency_converter.clear_today_cache('EUR')
+    rates = currency_converter.get_exchange_rates('EUR', force_refresh=True) or {}
+    usd = rates.get('USD')
+    gbp = rates.get('GBP')
+    flash(f'Exchange rates refreshed. EUR->USD: {usd}, EUR->GBP: {gbp}', 'success')
+    return redirect(url_for('main.general_settings'))
 
 @main.route('/payment_methods')
 @login_required

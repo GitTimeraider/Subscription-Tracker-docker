@@ -59,20 +59,113 @@
             </div>
         </div>
         
-        <div class="card mt-3">
+    <div class="card mt-3">
             <div class="card-body">
                 <h6 class="card-title">
                     <i class="fas fa-info-circle me-2"></i>Currency Information
                 </h6>
                 <ul class="list-unstyled mb-0">
                     <li><i class="fas fa-check text-success me-2"></i>Support for 30+ major currencies</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Real-time exchange rates with API key</li>
+                    <li><i class="fas fa-check text-success me-2"></i>ECB daily reference rates (no API key needed)</li>
                     <li><i class="fas fa-check text-success me-2"></i>Individual subscription currencies supported</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Exchange rates cached daily (force refresh via debug endpoint)</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Exchange rates cached until manual or interval refresh</li>
                 </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3" id="rates-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-sync-alt me-2"></i>Current Exchange Rates (EUR base)</span>
+                <form method="POST" action="{{ url_for('main.refresh_rates') }}" class="m-0 p-0">
+                    {{ form.hidden_tag() }}
+                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                        <i class="fas fa-bolt me-1"></i>Refresh Now
+                    </button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                {% if rates %}
+                <div class="p-2 border-bottom bg-light">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-8">
+                            <input type="text" id="rateFilter" class="form-control form-control-sm" placeholder="Filter currency code..." oninput="filterRates()">
+                        </div>
+                        <div class="col-4 text-end small text-muted">
+                            <span id="visibleCount"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height:300px;">
+                    <table class="table table-sm table-striped mb-0" id="ratesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="cursor:pointer" onclick="sortRates(0)">Currency <i class="fas fa-sort"></i></th>
+                                <th style="cursor:pointer" onclick="sortRates(1)">EUR->Rate <i class="fas fa-sort"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for code, rate in rates.items()|sort %}
+                            <tr>
+                                <td><strong>{{ code }}</strong></td>
+                                <td data-value="{{ rate }}"><code class="small">{{ rate }}</code></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <div class="p-3 text-muted">No rates available.</div>
+                {% endif %}
+                <div class="p-2 border-top small text-muted">
+                    Last updated: {% if last_updated %}{{ last_updated.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}N/A{% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rateSortDir = [1,1]; // 1 asc, -1 desc per column
+function sortRates(col){
+    const table=document.getElementById('ratesTable');
+    if(!table) return;
+    const tbody=table.querySelector('tbody');
+    const rows=Array.from(tbody.querySelectorAll('tr'));
+    rateSortDir[col]*=-1; // toggle
+    rows.sort((a,b)=>{
+        let av, bv;
+        if(col===0){
+            av=a.children[0].innerText.trim();
+            bv=b.children[0].innerText.trim();
+            return av.localeCompare(bv)*rateSortDir[col];
+        } else {
+            av=parseFloat(a.children[1].dataset.value);
+            bv=parseFloat(b.children[1].dataset.value);
+            if(isNaN(av)||isNaN(bv)) return 0;
+            return (av-bv)*rateSortDir[col];
+        }
+    });
+    rows.forEach(r=>tbody.appendChild(r));
+    updateVisibleCount();
+}
+function filterRates(){
+    const q=document.getElementById('rateFilter').value.toUpperCase();
+    const rows=document.querySelectorAll('#ratesTable tbody tr');
+    rows.forEach(r=>{
+        const code=r.children[0].innerText.toUpperCase();
+        r.style.display = code.includes(q)?'':'none';
+    });
+    updateVisibleCount();
+}
+function updateVisibleCount(){
+    const rows=document.querySelectorAll('#ratesTable tbody tr');
+    let visible=0;rows.forEach(r=>{ if(r.style.display!=="none") visible++; });
+    const el=document.getElementById('visibleCount');
+    if(el) el.textContent=visible+" / "+rows.length+" shown";
+}
+document.addEventListener('DOMContentLoaded', updateVisibleCount);
+</script>
 {% endblock %}
 
