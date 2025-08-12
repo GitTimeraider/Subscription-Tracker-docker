@@ -9,7 +9,8 @@ from decimal import Decimal, getcontext, InvalidOperation
 # High precision for chained conversions
 getcontext().prec = 28
 
-ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+JSDELIVR_EUR_URL = "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur.json"
+ERAPI_URL = "https://open.er-api.com/v6/latest/EUR"
 
 class CurrencyConverter:
     """Currency converter with multi-provider fallback and provider-specific caching."""
@@ -24,11 +25,11 @@ class CurrencyConverter:
 
         base_currency = 'EUR'
         refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))
-        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'exchangerate_host,frankfurter,ecb').split(',')
+        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'frankfurter,jsdelivr,erapi_open').split(',')
         provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
         primary_provider = provider_priority[0] if provider_priority else None
 
-        # Primary provider cache fast-path
+        # Fast path: primary provider cached
         if not force_refresh and primary_provider:
             record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
@@ -41,7 +42,6 @@ class CurrencyConverter:
                     except Exception:
                         pass
 
-        # Iterate providers
         for provider in provider_priority:
             try:
                 if not force_refresh:
@@ -55,13 +55,13 @@ class CurrencyConverter:
                                 return json.loads(cached.rates_json)
                             except Exception:
                                 pass
-                # Fetch live
-                if provider == 'exchangerate_host':
-                    rates = self._fetch_exchangerate_host()
-                elif provider == 'frankfurter':
+                # Live fetch
+                if provider == 'frankfurter':
                     rates = self._fetch_frankfurter()
-                elif provider == 'ecb':
-                    rates = self._fetch_ecb()
+                elif provider == 'jsdelivr':
+                    rates = self._fetch_jsdelivr()
+                elif provider == 'erapi_open':
+                    rates = self._fetch_erapi_open()
                 else:
                     continue
                 if rates and 'USD' in rates:
@@ -73,7 +73,7 @@ class CurrencyConverter:
                 current_app.logger.warning(f"Provider {provider} failed: {e}")
                 self.last_attempt_chain.append((provider, f'failed:{e.__class__.__name__}'))
 
-        # Any cached provider for today as fallback
+        # Fallback to any cached provider for today
         fallback_cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).order_by(ExchangeRate.created_at.desc()).first()
         if fallback_cached:
             try:
@@ -87,20 +87,6 @@ class CurrencyConverter:
         self.last_provider = 'fallback'
         self.last_attempt_chain.append(('fallback', 'static'))
         return self._get_fallback_rates(base_currency)
-
-    def _fetch_exchangerate_host(self):
-        url = 'https://api.exchangerate.host/latest?base=EUR'
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        rates = data.get('rates') or {}
-        out = {'EUR': Decimal('1')}
-        for k,v in rates.items():
-            try:
-                out[k] = Decimal(str(v))
-            except Exception:
-                continue
-        return out
 
     def _fetch_frankfurter(self):
         url = 'https://api.frankfurter.app/latest?from=EUR'
@@ -116,28 +102,33 @@ class CurrencyConverter:
                 continue
         return out
 
-    def _fetch_ecb(self):
-        resp = requests.get(ECB_DAILY_URL, timeout=10)
-        resp.raise_for_status()
-        xml_text = resp.text
-        root = ET.fromstring(xml_text)
-        rates = {'EUR': Decimal('1')}
-        cube_elements = root.findall('.//Cube[@time]')
-        if not cube_elements:
-            cube_elements = root.findall('.//{*}Cube[@time]')
-        for day in cube_elements:
-            for c in day.findall('Cube'):
-                curr = c.attrib.get('currency')
-                rate = c.attrib.get('rate')
-                if curr and rate:
-                    try:
-                        rates[curr] = Decimal(str(rate))
-                    except Exception:
-                        pass
-            break
-        if len(rates) <= 1:
-            raise ValueError('No rates parsed from ECB feed')
-        return rates
+    def _fetch_jsdelivr(self):
+        r = requests.get(JSDELIVR_EUR_URL, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        eur_block = data.get('eur', {})
+        out = {'EUR': Decimal('1')}
+        for k, v in eur_block.items():
+            try:
+                out[k.upper()] = Decimal(str(v))
+            except Exception:
+                continue
+        return out
+
+    def _fetch_erapi_open(self):
+        r = requests.get(ERAPI_URL, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        if data.get('result') != 'success':
+            raise ValueError('erapi_open result not success')
+        rates = data.get('rates') or {}
+        out = {'EUR': Decimal('1')}
+        for k, v in rates.items():
+            try:
+                out[k.upper()] = Decimal(str(v))
+            except Exception:
+                continue
+        return out
     
     def _get_fallback_rates(self, base_currency='EUR'):
         """Get fallback exchange rates when API is unavailable"""

@@ -88,7 +88,7 @@ def dashboard():
     display_currency = request.args.get('currency', user_settings.currency)
     # Apply preferred provider priority early (before any rate fetch inside subscription helpers)
     if user_settings.preferred_rate_provider:
-        defaults = ['exchangerate_host','frankfurter','ecb']
+        defaults = ['frankfurter','jsdelivr','erapi_open']
         priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
@@ -234,7 +234,7 @@ def general_settings():
     form = GeneralSettingsForm(obj=settings)
     # Apply user preferred provider before fetching
     if settings.preferred_rate_provider:
-        defaults = ['exchangerate_host','frankfurter','ecb']
+        defaults = ['frankfurter','jsdelivr','erapi_open']
         priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     # Fetch rates AFTER applying provider preference
@@ -256,7 +256,7 @@ def general_settings():
         # If provider changed, clear today's cache and force fetch
         if settings.preferred_rate_provider and settings.preferred_rate_provider != original_provider_pref:
             currency_converter.clear_today_cache('EUR')
-            defaults = ['exchangerate_host','frankfurter','ecb']
+            defaults = ['frankfurter','jsdelivr','erapi_open']
             priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
             os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
             currency_converter.get_exchange_rates('EUR', force_refresh=True)
@@ -298,7 +298,7 @@ def analytics():
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
     if user_settings.preferred_rate_provider:
-        defaults = ['exchangerate_host','frankfurter','ecb']
+        defaults = ['frankfurter','jsdelivr','erapi_open']
         priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     active_subs = [s for s in subscriptions if s.is_active]
@@ -344,7 +344,7 @@ def api_subscription_data():
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
     if user_settings.preferred_rate_provider:
-        defaults = ['exchangerate_host','frankfurter','ecb']
+        defaults = ['frankfurter','jsdelivr','erapi_open']
         priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     category_data = {}
@@ -373,7 +373,7 @@ def refresh_rates():
     """Force refresh exchange rates and redirect back to general settings."""
     settings = current_user.settings or UserSettings()
     if settings.preferred_rate_provider:
-        defaults = ['exchangerate_host','frankfurter','ecb']
+        defaults = ['frankfurter','jsdelivr','erapi_open']
         priority = [settings.preferred_rate_provider] + [p for p in defaults if p != settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
     currency_converter.clear_today_cache('EUR')
