@@ -96,32 +96,46 @@ class CurrencyConverter:
             else:
                 return {base_currency: 1.0}
     
-    def convert_amount(self, amount, from_currency, to_currency):
-        """Convert amount from one currency to another"""
+    def convert_amount(self, amount, from_currency, to_currency, rates=None, base_currency='EUR'):
+        """Convert amount from one currency to another.
+
+        Parameters:
+            amount (float): numeric amount
+            from_currency (str): source currency code
+            to_currency (str): destination currency code
+            rates (dict|None): optional pre-fetched rates dictionary with base 'base_currency'
+            base_currency (str): base currency the rates are expressed against (default EUR)
+        """
+        if amount is None:
+            return 0.0
         if from_currency == to_currency:
             return amount
-            
-        rates = self.get_exchange_rates('EUR')  # Use EUR as base
+
+        # Fetch rates if not provided
+        if rates is None:
+            rates = self.get_exchange_rates(base_currency)
         if not rates:
-            return amount  # Return original amount if conversion fails
-        
+            return amount
+
+        # Ensure base currency rate present
+        if base_currency not in rates:
+            rates[base_currency] = 1.0
+
         try:
-            # Convert to EUR first if needed
-            if from_currency != 'EUR':
-                if from_currency not in rates:
-                    return amount
-                amount_eur = amount / rates[from_currency]
+            # Normalize source amount into base currency first
+            if from_currency == base_currency:
+                amount_in_base = amount
             else:
-                amount_eur = amount
-            
-            # Convert from EUR to target currency
-            if to_currency != 'EUR':
-                if to_currency not in rates:
+                if from_currency not in rates or not rates[from_currency]:
                     return amount
-                return amount_eur * rates[to_currency]
-            else:
-                return amount_eur
-                
+                amount_in_base = amount / rates[from_currency]
+
+            # From base to target
+            if to_currency == base_currency:
+                return amount_in_base
+            if to_currency not in rates or not rates[to_currency]:
+                return amount
+            return amount_in_base * rates[to_currency]
         except (KeyError, ZeroDivisionError, TypeError):
             return amount
     

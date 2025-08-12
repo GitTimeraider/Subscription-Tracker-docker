@@ -159,14 +159,20 @@ class Subscription(db.Model):
             elif self.custom_days:  # Fallback for backward compatibility
                 monthly_cost = (self.cost / self.custom_days) * 30.44  # Average days per month
         
-        # Convert currency if needed
+        # Convert currency if needed (assumes exchange_rates are based on EUR)
         if target_currency and target_currency != self.currency and exchange_rates:
+            base_currency = 'EUR'
             if self.currency in exchange_rates and target_currency in exchange_rates:
-                # Convert from subscription currency to USD, then to target currency
-                if self.currency != 'USD':
-                    monthly_cost = monthly_cost / exchange_rates[self.currency]
-                if target_currency != 'USD':
-                    monthly_cost = monthly_cost * exchange_rates[target_currency]
+                # Convert source -> base
+                if self.currency == base_currency:
+                    amount_in_base = monthly_cost
+                else:
+                    amount_in_base = monthly_cost / exchange_rates[self.currency]
+                # Base -> target
+                if target_currency == base_currency:
+                    monthly_cost = amount_in_base
+                else:
+                    monthly_cost = amount_in_base * exchange_rates[target_currency]
         
         return monthly_cost
 
@@ -179,12 +185,16 @@ class Subscription(db.Model):
         cost = self.cost
         
         if target_currency and target_currency != self.currency and exchange_rates:
+            base_currency = 'EUR'
             if self.currency in exchange_rates and target_currency in exchange_rates:
-                # Convert from subscription currency to USD, then to target currency
-                if self.currency != 'USD':
-                    cost = cost / exchange_rates[self.currency]
-                if target_currency != 'USD':
-                    cost = cost * exchange_rates[target_currency]
+                if self.currency == base_currency:
+                    amount_in_base = cost
+                else:
+                    amount_in_base = cost / exchange_rates[self.currency]
+                if target_currency == base_currency:
+                    cost = amount_in_base
+                else:
+                    cost = amount_in_base * exchange_rates[target_currency]
         
         return cost
 
@@ -210,18 +220,33 @@ class Subscription(db.Model):
         """Get monthly cost converted to target currency using currency converter"""
         from app.currency import currency_converter
         
-        monthly_cost = self.get_monthly_cost()
         if not target_currency or target_currency == self.currency:
-            return monthly_cost
-        
-        return currency_converter.convert_amount(monthly_cost, self.currency or 'USD', target_currency)
+            return self.get_monthly_cost()
+        # Reuse a single rates fetch per request by storing on flask.g
+        try:
+            from flask import g
+            if not hasattr(g, '_eur_rates_cache'):
+                g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+            rates = g._eur_rates_cache
+        except Exception:
+            rates = currency_converter.get_exchange_rates('EUR') or {}
+        base_currency = 'EUR'
+        monthly_cost_source = self.get_monthly_cost()
+        return currency_converter.convert_amount(monthly_cost_source, self.currency or base_currency, target_currency, rates=rates, base_currency=base_currency)
     
     def get_yearly_cost_in_currency(self, target_currency):
         """Get yearly cost converted to target currency using currency converter"""
         from app.currency import currency_converter
         
-        yearly_cost = self.get_yearly_cost()
         if not target_currency or target_currency == self.currency:
-            return yearly_cost
-        
-        return currency_converter.convert_amount(yearly_cost, self.currency or 'USD', target_currency)
+            return self.get_yearly_cost()
+        try:
+            from flask import g
+            if not hasattr(g, '_eur_rates_cache'):
+                g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+            rates = g._eur_rates_cache
+        except Exception:
+            rates = currency_converter.get_exchange_rates('EUR') or {}
+        base_currency = 'EUR'
+        yearly_cost_source = self.get_yearly_cost()
+        return currency_converter.convert_amount(yearly_cost_source, self.currency or base_currency, target_currency, rates=rates, base_currency=base_currency)
