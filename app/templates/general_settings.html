@@ -1,18 +1,6 @@
 {% extends "base.html" %}
 
-{%                     <div class="mb-3">
-                        {{ form.unirate_api_key.label(class="form-label") }}
-                        {{ form.unirate_api_key(class="form-control", type="password") }}
-                        <small class="form-text text-muted">
-                            Get a free API key from <a href="https://unirateapi.com" target="_blank">UniRateAPI.com</a> for daily currency exchange rates. Exchange rates are fetched once per day and cached for the entire day. Without this, the system will use fallback rates.
-                        </small>
-                        {% if form.unirate_api_key.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.unirate_api_key.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}}General Settings - Subscription Tracker{% endblock %}
+{% block title %}General Settings - Subscription Tracker{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -93,7 +81,7 @@
                     <li><i class="fas fa-check text-success me-2"></i>Support for 30+ major currencies</li>
                     <li><i class="fas fa-check text-success me-2"></i>Real-time exchange rates with API key</li>
                     <li><i class="fas fa-check text-success me-2"></i>Individual subscription currencies supported</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Exchange rates cached for 1 hour for performance</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Exchange rates cached daily (force refresh via debug endpoint)</li>
                 </ul>
             </div>
         </div>
