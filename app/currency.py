@@ -9,7 +9,7 @@ from decimal import Decimal, getcontext, InvalidOperation
 # High precision for chained conversions
 getcontext().prec = 28
 
-JSDELIVR_EUR_URL = "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur.json"
+FLOATRATES_URL = "https://www.floatrates.com/daily/eur.json"
 ERAPI_URL = "https://open.er-api.com/v6/latest/EUR"
 
 class CurrencyConverter:
@@ -22,14 +22,13 @@ class CurrencyConverter:
     def get_exchange_rates(self, base_currency: str = 'EUR', force_refresh: bool = False):
         from app.models import ExchangeRate
         self.last_attempt_chain = []
-
         base_currency = 'EUR'
         refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))
-        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'frankfurter,jsdelivr,erapi_open').split(',')
-        provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
+        provider_priority_env = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'frankfurter,floatrates,erapi_open')
+        provider_priority = [p.strip().lower() for p in provider_priority_env.split(',') if p.strip()]
+        provider_priority = ['floatrates' if p == 'jsdelivr' else p for p in provider_priority]
         primary_provider = provider_priority[0] if provider_priority else None
 
-        # Fast path: primary provider cached
         if not force_refresh and primary_provider:
             record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
@@ -55,11 +54,10 @@ class CurrencyConverter:
                                 return json.loads(cached.rates_json)
                             except Exception:
                                 pass
-                # Live fetch
                 if provider == 'frankfurter':
                     rates = self._fetch_frankfurter()
-                elif provider == 'jsdelivr':
-                    rates = self._fetch_jsdelivr()
+                elif provider == 'floatrates':
+                    rates = self._fetch_floatrates()
                 elif provider == 'erapi_open':
                     rates = self._fetch_erapi_open()
                 else:
@@ -73,7 +71,6 @@ class CurrencyConverter:
                 current_app.logger.warning(f"Provider {provider} failed: {e}")
                 self.last_attempt_chain.append((provider, f'failed:{e.__class__.__name__}'))
 
-        # Fallback to any cached provider for today
         fallback_cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).order_by(ExchangeRate.created_at.desc()).first()
         if fallback_cached:
             try:
@@ -102,15 +99,18 @@ class CurrencyConverter:
                 continue
         return out
 
-    def _fetch_jsdelivr(self):
-        r = requests.get(JSDELIVR_EUR_URL, timeout=10)
+    def _fetch_floatrates(self):
+        r = requests.get(FLOATRATES_URL, timeout=10)
         r.raise_for_status()
-        data = r.json()
-        eur_block = data.get('eur', {})
+        data = r.json()  # keys are lowercase currency codes
         out = {'EUR': Decimal('1')}
-        for k, v in eur_block.items():
+        for code, meta in data.items():
+            # meta expected to have 'rate'
+            rate = meta.get('rate') if isinstance(meta, dict) else None
+            if rate is None:
+                continue
             try:
-                out[k.upper()] = Decimal(str(v))
+                out[code.upper()] = Decimal(str(rate))
             except Exception:
                 continue
         return out

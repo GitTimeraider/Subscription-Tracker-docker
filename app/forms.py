@@ -112,9 +112,9 @@ class GeneralSettingsForm(FlaskForm):
                                  ('Asia/Shanghai', 'Shanghai')],
                           validators=[DataRequired()])
     preferred_rate_provider = SelectField('Exchange Rate Provider', choices=[
-        ('frankfurter','Frankfurter (api.frankfurter.app)'),
-        ('jsdelivr','jsDelivr (GitHub currency-api mirror)'),
-        ('erapi_open','ER API Open (open.er-api.com)')
+    ('frankfurter','Frankfurter (api.frankfurter.app)'),
+    ('floatrates','FloatRates (floatrates.com daily JSON)'),
+    ('erapi_open','ER API Open (open.er-api.com)')
     ], validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
