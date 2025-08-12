@@ -68,6 +68,69 @@
                 </p>
             </div>
         </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-palette me-2"></i>Theme Settings
+                </h6>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small">Theme Mode</label>
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleTheme()" id="theme-toggle">
+                                <i class="fas fa-moon me-2"></i>Toggle Dark Mode
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <label class="form-label small">Accent Color</label>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <button type="button" class="btn btn-sm accent-btn" 
+                                    style="background-color: #6f42c1; width: 30px; height: 30px; border-radius: 50%;" 
+                                    onclick="changeAccentColor('purple')" title="Purple"></button>
+                            <button type="button" class="btn btn-sm accent-btn" 
+                                    style="background-color: #007bff; width: 30px; height: 30px; border-radius: 50%;" 
+                                    onclick="changeAccentColor('blue')" title="Blue"></button>
+                            <button type="button" class="btn btn-sm accent-btn" 
+                                    style="background-color: #28a745; width: 30px; height: 30px; border-radius: 50%;" 
+                                    onclick="changeAccentColor('green')" title="Green"></button>
+                            <button type="button" class="btn btn-sm accent-btn" 
+                                    style="background-color: #dc3545; width: 30px; height: 30px; border-radius: 50%;" 
+                                    onclick="changeAccentColor('red')" title="Red"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Update theme toggle button text and icon
+    function updateThemeToggleButton() {
+        const themeToggle = document.getElementById('theme-toggle');
+        const currentTheme = getStoredTheme();
+        
+        if (currentTheme === 'dark') {
+            themeToggle.innerHTML = '<i class="fas fa-sun me-2"></i>Toggle Light Mode';
+        } else {
+            themeToggle.innerHTML = '<i class="fas fa-moon me-2"></i>Toggle Dark Mode';
+        }
+    }
+    
+    // Override the toggleTheme function to update button
+    const originalToggleTheme = toggleTheme;
+    toggleTheme = function() {
+        originalToggleTheme();
+        updateThemeToggleButton();
+    };
+    
+    // Initialize button on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeToggleButton();
+    });
+</script>
 {% endblock %}

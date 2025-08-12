@@ -66,6 +66,35 @@ def logout():
     logout_user()
     return redirect(url_for('main.login'))
 
+@main.route('/sync-theme', methods=['POST'])
+@login_required
+def sync_theme():
+    """Sync theme preferences from localStorage to user settings"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    theme_mode = data.get('theme', 'light')
+    accent_color = data.get('accentColor', 'purple')
+    
+    # Validate values
+    if theme_mode not in ['light', 'dark']:
+        theme_mode = 'light'
+    if accent_color not in ['purple', 'blue', 'green', 'red']:
+        accent_color = 'purple'
+    
+    # Update user settings
+    if not current_user.settings:
+        settings = UserSettings(user_id=current_user.id)
+        db.session.add(settings)
+        current_user.settings = settings
+    
+    current_user.settings.theme_mode = theme_mode
+    current_user.settings.accent_color = accent_color
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
 @main.route('/dashboard')
 @login_required
 def dashboard():

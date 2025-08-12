@@ -19,48 +19,89 @@
         {% set accent_color = 'purple' %}
     {% endif %}
     
-    <style>
+    <script>
+        // Theme detection for non-authenticated users
+        function getStoredTheme() {
+            return localStorage.getItem('theme') || 'light';
+        }
+        
+        function getStoredAccentColor() {
+            return localStorage.getItem('accentColor') || 'purple';
+        }
+        
+        // Apply theme immediately if user is not authenticated
+        {% if not current_user.is_authenticated %}
+        (function() {
+            const storedTheme = getStoredTheme();
+            const storedAccent = getStoredAccentColor();
+            document.documentElement.setAttribute('data-theme', storedTheme);
+            document.documentElement.setAttribute('data-accent', storedAccent);
+        })();
+        {% endif %}
+    </script>
+    
+    <style id="theme-style">
         :root {
             /* Accent Color Variables */
-            {% if accent_color == 'purple' %}
-            --primary-color: #6f42c1;
-            --primary-dark: #5a359a;
-            --primary-light: #8e63d4;
-            {% elif accent_color == 'blue' %}
-            --primary-color: #007bff;
-            --primary-dark: #0056b3;
-            --primary-light: #66b3ff;
-            {% elif accent_color == 'green' %}
-            --primary-color: #28a745;
-            --primary-dark: #1e7e34;
-            --primary-light: #5cb85c;
-            {% elif accent_color == 'red' %}
-            --primary-color: #dc3545;
-            --primary-dark: #c82333;
-            --primary-light: #e67e22;
+            {% if current_user.is_authenticated %}
+                {% if accent_color == 'purple' %}
+                --primary-color: #6f42c1;
+                --primary-dark: #5a359a;
+                --primary-light: #8e63d4;
+                {% elif accent_color == 'blue' %}
+                --primary-color: #007bff;
+                --primary-dark: #0056b3;
+                --primary-light: #66b3ff;
+                {% elif accent_color == 'green' %}
+                --primary-color: #28a745;
+                --primary-dark: #1e7e34;
+                --primary-light: #5cb85c;
+                {% elif accent_color == 'red' %}
+                --primary-color: #dc3545;
+                --primary-dark: #c82333;
+                --primary-light: #e67e22;
+                {% endif %}
+            {% else %}
+                /* Default values - will be overridden by JavaScript */
+                --primary-color: #6f42c1;
+                --primary-dark: #5a359a;
+                --primary-light: #8e63d4;
             {% endif %}
             
             /* Theme Mode Variables */
-            {% if theme_mode == 'dark' %}
-            --bg-color: #1a1a1a;
-            --card-bg: #2d2d2d;
-            --text-color: #ffffff;
-            --text-muted: #aaaaaa;
-            --border-color: #404040;
-            --navbar-bg: var(--primary-color);
-            --input-bg: #3d3d3d;
-            --input-border: #555555;
-            --shadow-color: rgba(0,0,0,.3);
+            {% if current_user.is_authenticated %}
+                {% if theme_mode == 'dark' %}
+                --bg-color: #1a1a1a;
+                --card-bg: #2d2d2d;
+                --text-color: #ffffff;
+                --text-muted: #aaaaaa;
+                --border-color: #404040;
+                --navbar-bg: var(--primary-color);
+                --input-bg: #3d3d3d;
+                --input-border: #555555;
+                --shadow-color: rgba(0,0,0,.3);
+                {% else %}
+                --bg-color: #f8f9fa;
+                --card-bg: #ffffff;
+                --text-color: #212529;
+                --text-muted: #6c757d;
+                --border-color: #e9ecef;
+                --navbar-bg: var(--primary-color);
+                --input-bg: #ffffff;
+                --input-border: #e9ecef;
+                --shadow-color: rgba(0,0,0,.1);
+                {% endif %}
             {% else %}
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-color: #212529;
-            --text-muted: #6c757d;
-            --border-color: #e9ecef;
-            --navbar-bg: var(--primary-color);
-            --input-bg: #ffffff;
-            --input-border: #e9ecef;
-            --shadow-color: rgba(0,0,0,.1);
+                /* Default light theme - will be overridden by JavaScript */
+                --bg-color: #f8f9fa;
+                --card-bg: #ffffff;
+                --text-color: #212529;
+                --text-muted: #6c757d;
+                --border-color: #e9ecef;
+                --navbar-bg: var(--primary-color);
+                --input-bg: #ffffff;
+                --input-border: #e9ecef;
+                --shadow-color: rgba(0,0,0,.1);
             {% endif %}
             
             /* Other color variables */
@@ -361,6 +402,113 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Theme management for non-authenticated users
+        {% if not current_user.is_authenticated %}
+        function setThemeVariables(theme, accent) {
+            const root = document.documentElement;
+            
+            // Set accent color variables
+            const accentColors = {
+                'purple': { primary: '#6f42c1', dark: '#5a359a', light: '#8e63d4' },
+                'blue': { primary: '#007bff', dark: '#0056b3', light: '#66b3ff' },
+                'green': { primary: '#28a745', dark: '#1e7e34', light: '#5cb85c' },
+                'red': { primary: '#dc3545', dark: '#c82333', light: '#e67e22' }
+            };
+            
+            const colors = accentColors[accent] || accentColors.purple;
+            root.style.setProperty('--primary-color', colors.primary);
+            root.style.setProperty('--primary-dark', colors.dark);
+            root.style.setProperty('--primary-light', colors.light);
+            
+            // Set theme variables
+            if (theme === 'dark') {
+                root.style.setProperty('--bg-color', '#1a1a1a');
+                root.style.setProperty('--card-bg', '#2d2d2d');
+                root.style.setProperty('--text-color', '#ffffff');
+                root.style.setProperty('--text-muted', '#aaaaaa');
+                root.style.setProperty('--border-color', '#404040');
+                root.style.setProperty('--input-bg', '#3d3d3d');
+                root.style.setProperty('--input-border', '#555555');
+                root.style.setProperty('--shadow-color', 'rgba(0,0,0,.3)');
+            } else {
+                root.style.setProperty('--bg-color', '#f8f9fa');
+                root.style.setProperty('--card-bg', '#ffffff');
+                root.style.setProperty('--text-color', '#212529');
+                root.style.setProperty('--text-muted', '#6c757d');
+                root.style.setProperty('--border-color', '#e9ecef');
+                root.style.setProperty('--input-bg', '#ffffff');
+                root.style.setProperty('--input-border', '#e9ecef');
+                root.style.setProperty('--shadow-color', 'rgba(0,0,0,.1)');
+            }
+            root.style.setProperty('--navbar-bg', colors.primary);
+        }
+        
+        function toggleTheme() {
+            const currentTheme = getStoredTheme();
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            const currentAccent = getStoredAccentColor();
+            
+            localStorage.setItem('theme', newTheme);
+            setThemeVariables(newTheme, currentAccent);
+            
+            // Update body class
+            document.body.className = document.body.className.replace(/theme-\w+/, 'theme-' + newTheme);
+        }
+        
+        function changeAccentColor(color) {
+            const currentTheme = getStoredTheme();
+            localStorage.setItem('accentColor', color);
+            setThemeVariables(currentTheme, color);
+            
+            // Update body class
+            document.body.className = document.body.className.replace(/accent-\w+/, 'accent-' + color);
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedTheme = getStoredTheme();
+            const storedAccent = getStoredAccentColor();
+            setThemeVariables(storedTheme, storedAccent);
+            document.body.className = `theme-${storedTheme} accent-${storedAccent}`;
+        });
+        {% endif %}
+        
+        {% if current_user.is_authenticated %}
+        // Sync theme preferences with server on first load after login
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedTheme = localStorage.getItem('theme');
+            const storedAccent = localStorage.getItem('accentColor');
+            
+            // Only sync if we have stored preferences that might differ from server
+            if (storedTheme || storedAccent) {
+                fetch('/sync-theme', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        theme: storedTheme || 'light',
+                        accentColor: storedAccent || 'purple'
+                    })
+                }).then(response => {
+                    if (response.ok) {
+                        // Clear localStorage after successful sync
+                        localStorage.removeItem('theme');
+                        localStorage.removeItem('accentColor');
+                        
+                        // Optionally reload to apply server-side theme
+                        // window.location.reload();
+                    }
+                }).catch(error => {
+                    console.log('Theme sync failed:', error);
+                });
+            }
+        });
+        {% endif %}
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
