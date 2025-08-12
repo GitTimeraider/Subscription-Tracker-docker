@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory
+from urllib.parse import urlparse
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate
@@ -28,7 +29,13 @@ def login():
         if user and user.check_password(form.password.data):
             login_user(user)
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('main.dashboard'))
+            if next_page:
+                # Remove backslashes and validate that next_page is a relative URL
+                next_page_clean = next_page.replace('\\', '')
+                parsed = urlparse(next_page_clean)
+                if not parsed.netloc and not parsed.scheme:
+                    return redirect(next_page_clean)
+            return redirect(url_for('main.dashboard'))
         flash('Invalid username or password', 'error')
     return render_template('login.html', form=form)
 
