@@ -86,13 +86,16 @@ def dashboard():
 
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
-    # ECB rates auto-fetched (no API key)
+    # Apply preferred provider priority if user specified
+    if user_settings.preferred_rate_provider:
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
     categories = [cat[0] for cat in categories if cat[0]]
     expiring_soon = [sub for sub in subscriptions if sub.is_expiring_soon(user_settings.notification_days)]
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
+    active_provider = currency_converter.last_provider
     return render_template('dashboard.html', 
                          subscriptions=subscriptions,
                          total_monthly=total_monthly,
@@ -102,7 +105,8 @@ def dashboard():
                          current_status=status_filter,
                          expiring_soon=expiring_soon,
                          user_currency=display_currency,
-                         currency_symbol=currency_symbol)
+                         currency_symbol=currency_symbol,
+                         rate_provider=active_provider)
 
 @main.route('/add_subscription', methods=['GET', 'POST'])
 @login_required
@@ -239,10 +243,14 @@ def general_settings():
             settings = current_user.settings
         settings.currency = form.currency.data
         settings.timezone = form.timezone.data
+        settings.preferred_rate_provider = form.preferred_rate_provider.data
         db.session.commit()
         flash('General settings updated successfully!', 'success')
         return redirect(url_for('main.general_settings'))
-    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated)
+    # If provider set, ensure form reflects it
+    if settings.preferred_rate_provider:
+        form.preferred_rate_provider.data = settings.preferred_rate_provider
+    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider)
 
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required
@@ -272,6 +280,8 @@ def analytics():
     subscriptions = Subscription.query.filter_by(user_id=current_user.id).all()
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
+    if user_settings.preferred_rate_provider:
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
     active_subs = [s for s in subscriptions if s.is_active]
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in active_subs)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in active_subs)
@@ -295,6 +305,7 @@ def analytics():
                 upcoming.append({'subscription': sub,'days_left': days_left})
     upcoming.sort(key=lambda x: x['days_left'])
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
+    active_provider = currency_converter.last_provider
     return render_template('analytics.html',
                          total_monthly=total_monthly,
                          total_yearly=total_yearly,
@@ -304,7 +315,8 @@ def analytics():
                          active_count=len(active_subs),
                          total_count=len(subscriptions),
                          user_currency=display_currency,
-                         currency_symbol=currency_symbol)
+                         currency_symbol=currency_symbol,
+                         rate_provider=active_provider)
 
 @main.route('/api/subscription_data')
 @login_required
@@ -312,6 +324,8 @@ def api_subscription_data():
     subscriptions = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
+    if user_settings.preferred_rate_provider:
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
     category_data = {}
     for sub in subscriptions:
         category = sub.category or 'other'

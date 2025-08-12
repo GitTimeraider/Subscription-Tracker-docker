@@ -13,6 +13,8 @@ ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 
 class CurrencyConverter:
     """Currency converter using ECB public daily reference rates (no API key required)."""
+    def __init__(self):
+        self.last_provider = None
 
     def get_exchange_rates(self, base_currency='EUR', force_refresh=False):
         from app.models import ExchangeRate
@@ -31,36 +33,82 @@ class CurrencyConverter:
                     except Exception:
                         pass  # fall through to refetch if JSON corrupt
 
-        try:
-            resp = requests.get(ECB_DAILY_URL, timeout=10)
-            resp.raise_for_status()
-            xml_text = resp.text
-            root = ET.fromstring(xml_text)
-            # XML structure: <Envelope><Cube><Cube time='YYYY-MM-DD'><Cube currency='USD' rate='1.0854'/>...</Cube></Cube></Envelope>
-            rates = { 'EUR': 1.0 }
-            ns = {'def': 'http://www.ecb.int/vocabulary/2002-08-01/eurofxref'}  # but file often has default no namespace
-            # Gracefully handle no namespace
-            cube_elements = root.findall('.//Cube[@time]')
-            if not cube_elements:
-                cube_elements = root.findall('.//{*}Cube[@time]')
-            for day in cube_elements:
-                for c in day.findall('Cube'):
-                    curr = c.attrib.get('currency')
-                    rate = c.attrib.get('rate')
-                    if curr and rate:
-                        try:
-                            rates[curr] = str(rate)  # store as string to preserve exact textual precision
-                        except Exception:
-                            pass
-                break  # only latest day
-            if len(rates) <= 1:
-                raise ValueError('No rates parsed from ECB feed')
-            ExchangeRate.save_rates(rates, base_currency)
-            # Return as dict of Decimal for internal math
-            return {k: (Decimal(v) if k != 'EUR' else Decimal('1')) for k, v in rates.items()}
-        except Exception as e:
-            current_app.logger.error(f"ECB rates fetch failed: {e}")
-            return self._get_fallback_rates(base_currency)
+        # Provider priority list (can be overridden)
+        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'exchangerate_host,frankfurter,ecb').split(',')
+        provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
+
+        for provider in provider_priority:
+            try:
+                if provider == 'exchangerate_host':
+                    rates = self._fetch_exchangerate_host()
+                elif provider == 'frankfurter':
+                    rates = self._fetch_frankfurter()
+                elif provider == 'ecb':
+                    rates = self._fetch_ecb()
+                else:
+                    continue
+                if rates and 'USD' in rates:  # minimal sanity check
+                    self.last_provider = provider
+                    ExchangeRate.save_rates({k: str(v) for k,v in rates.items()}, base_currency)
+                    return rates
+            except Exception as e:
+                current_app.logger.warning(f"Provider {provider} failed: {e}")
+
+        # All providers failed
+        current_app.logger.error("All currency providers failed; using fallback rates")
+        self.last_provider = 'fallback'
+        return self._get_fallback_rates(base_currency)
+
+    def _fetch_exchangerate_host(self):
+        url = 'https://api.exchangerate.host/latest?base=EUR'
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        rates = data.get('rates') or {}
+        out = {'EUR': Decimal('1')}
+        for k,v in rates.items():
+            try:
+                out[k] = Decimal(str(v))
+            except Exception:
+                continue
+        return out
+
+    def _fetch_frankfurter(self):
+        url = 'https://api.frankfurter.app/latest?from=EUR'
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        rates = data.get('rates') or {}
+        out = {'EUR': Decimal('1')}
+        for k,v in rates.items():
+            try:
+                out[k] = Decimal(str(v))
+            except Exception:
+                continue
+        return out
+
+    def _fetch_ecb(self):
+        resp = requests.get(ECB_DAILY_URL, timeout=10)
+        resp.raise_for_status()
+        xml_text = resp.text
+        root = ET.fromstring(xml_text)
+        rates = {'EUR': Decimal('1')}
+        cube_elements = root.findall('.//Cube[@time]')
+        if not cube_elements:
+            cube_elements = root.findall('.//{*}Cube[@time]')
+        for day in cube_elements:
+            for c in day.findall('Cube'):
+                curr = c.attrib.get('currency')
+                rate = c.attrib.get('rate')
+                if curr and rate:
+                    try:
+                        rates[curr] = Decimal(str(rate))
+                    except Exception:
+                        pass
+            break
+        if len(rates) <= 1:
+            raise ValueError('No rates parsed from ECB feed')
+        return rates
     
     def _get_fallback_rates(self, base_currency='EUR'):
         """Get fallback exchange rates when API is unavailable"""

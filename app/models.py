@@ -40,6 +40,7 @@ class UserSettings(db.Model):
     currency = db.Column(db.String(3), default='EUR')
     timezone = db.Column(db.String(50), default='UTC')
     unirate_api_key = db.Column(db.String(100))  # Deprecated: no longer used (ECB rates)
+    preferred_rate_provider = db.Column(db.String(30))  # 'exchangerate_host','frankfurter','ecb'
     
     # Relationship
     user = db.relationship('User', backref=db.backref('settings', uselist=False))

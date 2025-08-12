@@ -111,10 +111,16 @@ class GeneralSettingsForm(FlaskForm):
                                  ('Europe/Amsterdam', 'Amsterdam'), ('Asia/Tokyo', 'Tokyo'), 
                                  ('Asia/Shanghai', 'Shanghai')],
                           validators=[DataRequired()])
+    preferred_rate_provider = SelectField('Exchange Rate Provider', choices=[
+        ('exchangerate_host','exchangerate.host'),
+        ('frankfurter','Frankfurter'),
+        ('ecb','ECB (European Central Bank)')
+    ], validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
         super(GeneralSettingsForm, self).__init__(*args, **kwargs)
         self.currency.choices = currency_converter.get_supported_currencies()
+    # Preselect provider if settings exist on the object
 
 class EmailSettingsForm(FlaskForm):
     mail_server = StringField('SMTP Server', validators=[Optional()])

@@ -3,6 +3,14 @@
 {% block title %}Dashboard - Subscription Tracker{% endblock %}
 
 {% block content %}
+{% if rate_provider %}
+<div class="alert alert-info py-2 mb-3">
+    <i class="fas fa-globe me-1"></i> Rates provider: <strong>{{ rate_provider }}</strong>
+    {% if rate_provider == 'fallback' %}
+        <span class="ms-2 text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Using fallback rates – refresh later.</span>
+    {% endif %}
+</div>
+{% endif %}
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card stats-card">
