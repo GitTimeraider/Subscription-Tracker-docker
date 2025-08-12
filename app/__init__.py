@@ -42,17 +42,25 @@ def create_app():
     # Lazy scheduler + perf timer combined (Flask 3 removed before_first_request)
     @app.before_request
     def _pre_request_hooks():
-        # Start scheduler once lazily
-        if not getattr(app, '_scheduler_started', False):
-            try:
-                from app.email import start_scheduler
-                start_scheduler(app)
-                app._scheduler_started = True
-            except Exception as e:
-                app.logger.error(f"Failed to start scheduler: {e}")
         # Start perf timer if enabled
         if app.config.get('PERFORMANCE_LOGGING') or request.environ.get('PERFORMANCE_LOGGING'):
             g._req_start_ts = time.time()
+
+        # Skip heavy startup for static assets and auth pages
+        path = request.path or ''
+        if path.startswith('/static') or path in ('/login','/','/favicon.ico'):
+            return
+
+        # Only start scheduler after a non-auth (post-login) request to reduce cold-login latency
+        if not getattr(app, '_scheduler_started', False):
+            try:
+                from flask_login import current_user
+                if current_user.is_authenticated:
+                    from app.email import start_scheduler
+                    start_scheduler(app)
+                    app._scheduler_started = True
+            except Exception as e:
+                app.logger.error(f"Failed to start scheduler: {e}")
 
     @app.after_request
     def _perf_timer_end(response):
