@@ -128,6 +128,12 @@
                 {% endif %}
                 <div class="p-2 border-top small text-muted">
                     Last updated: {% if last_updated %}{{ last_updated.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}N/A{% endif %}
+                    {% if provider and currency_converter and currency_converter.last_attempt_chain %}
+                        <br>Attempts: 
+                        {% for p, status in currency_converter.last_attempt_chain %}
+                            <span class="badge bg-light text-dark border">{{ p }}: {{ status }}</span>
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
         </div>

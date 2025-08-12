@@ -252,7 +252,7 @@ def general_settings():
     # If provider set, ensure form reflects it
     if settings.preferred_rate_provider:
         form.preferred_rate_provider.data = settings.preferred_rate_provider
-    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider)
+    return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider, currency_converter=currency_converter)
 
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required

@@ -12,47 +12,50 @@ getcontext().prec = 28
 ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 
 class CurrencyConverter:
-    """Currency converter using ECB public daily reference rates (no API key required)."""
+    """Currency converter with multi-provider fallback and provider-specific caching."""
+
     def __init__(self):
         self.last_provider = None
+        self.last_attempt_chain = []  # list of (provider, status)
 
-    def get_exchange_rates(self, base_currency='EUR', force_refresh=False):
+    def get_exchange_rates(self, base_currency: str = 'EUR', force_refresh: bool = False):
         from app.models import ExchangeRate
+        self.last_attempt_chain = []
 
-        base_currency = 'EUR'  # All providers queried with EUR base
+        base_currency = 'EUR'
         refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))
-
-        # Build ordered provider list
         provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'exchangerate_host,frankfurter,ecb').split(',')
         provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
         primary_provider = provider_priority[0] if provider_priority else None
 
+        # Primary provider cache fast-path
         if not force_refresh and primary_provider:
-            # Try cache for primary provider only
             record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
                 age_min = (datetime.utcnow() - record.created_at).total_seconds() / 60.0
                 if age_min <= refresh_minutes:
                     try:
                         self.last_provider = primary_provider
+                        self.last_attempt_chain.append((primary_provider, 'cache'))
                         return json.loads(record.rates_json)
                     except Exception:
                         pass
 
-        # Iterate providers until success; always store provider-specific row
+        # Iterate providers
         for provider in provider_priority:
             try:
-                # If not force_refresh, allow using cached row for this provider
                 if not force_refresh:
                     cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=provider).first()
                     if cached:
                         age_min = (datetime.utcnow() - cached.created_at).total_seconds() / 60.0
                         if age_min <= refresh_minutes:
-                            self.last_provider = provider
                             try:
+                                self.last_provider = provider
+                                self.last_attempt_chain.append((provider, 'cache'))
                                 return json.loads(cached.rates_json)
                             except Exception:
                                 pass
+                # Fetch live
                 if provider == 'exchangerate_host':
                     rates = self._fetch_exchangerate_host()
                 elif provider == 'frankfurter':
@@ -64,21 +67,25 @@ class CurrencyConverter:
                 if rates and 'USD' in rates:
                     self.last_provider = provider
                     ExchangeRate.save_rates({k: str(v) for k, v in rates.items()}, base_currency, provider=provider)
+                    self.last_attempt_chain.append((provider, 'fetched'))
                     return rates
             except Exception as e:
                 current_app.logger.warning(f"Provider {provider} failed: {e}")
+                self.last_attempt_chain.append((provider, f'failed:{e.__class__.__name__}'))
 
-        # If all providers failed, attempt any cached provider for today regardless of priority
+        # Any cached provider for today as fallback
         fallback_cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).order_by(ExchangeRate.created_at.desc()).first()
         if fallback_cached:
             try:
                 self.last_provider = fallback_cached.provider
+                self.last_attempt_chain.append((fallback_cached.provider, 'fallback-cached'))
                 return json.loads(fallback_cached.rates_json)
             except Exception:
                 pass
 
-        current_app.logger.error("All currency providers failed; using fallback rates")
+        current_app.logger.error("All currency providers failed; using static fallback rates")
         self.last_provider = 'fallback'
+        self.last_attempt_chain.append(('fallback', 'static'))
         return self._get_fallback_rates(base_currency)
 
     def _fetch_exchangerate_host(self):
