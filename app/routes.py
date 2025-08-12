@@ -252,6 +252,8 @@ def general_settings():
         settings.currency = form.currency.data
         settings.timezone = form.timezone.data
         settings.preferred_rate_provider = form.preferred_rate_provider.data
+        settings.theme_mode = form.theme_mode.data
+        settings.accent_color = form.accent_color.data
         db.session.commit()
         # If provider changed, clear today's cache and force fetch
         if settings.preferred_rate_provider and settings.preferred_rate_provider != original_provider_pref:

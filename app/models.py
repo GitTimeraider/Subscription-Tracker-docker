@@ -42,6 +42,10 @@ class UserSettings(db.Model):
     unirate_api_key = db.Column(db.String(100))  # Deprecated: no longer used (ECB rates)
     preferred_rate_provider = db.Column(db.String(30))  # 'exchangerate_host','frankfurter','ecb'
     
+    # Theme settings
+    theme_mode = db.Column(db.String(10), default='light')  # 'light' or 'dark'
+    accent_color = db.Column(db.String(10), default='purple')  # 'blue', 'purple', etc.
+    
     # Relationship
     user = db.relationship('User', backref=db.backref('settings', uselist=False))
 

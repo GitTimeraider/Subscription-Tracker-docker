@@ -116,6 +116,12 @@ class GeneralSettingsForm(FlaskForm):
     ('floatrates','FloatRates (floatrates.com daily JSON)'),
     ('erapi_open','ER API Open (open.er-api.com)')
     ], validators=[Optional()])
+    theme_mode = SelectField('Theme Mode', 
+                           choices=[('light', 'Light Mode'), ('dark', 'Dark Mode')], 
+                           validators=[DataRequired()])
+    accent_color = SelectField('Accent Color',
+                             choices=[('blue', 'Blue'), ('purple', 'Purple'), ('green', 'Green'), ('red', 'Red')],
+                             validators=[DataRequired()])
     
     def __init__(self, *args, **kwargs):
         super(GeneralSettingsForm, self).__init__(*args, **kwargs)

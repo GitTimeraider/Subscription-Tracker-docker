@@ -52,6 +52,32 @@
                         {{ form.preferred_rate_provider(class="form-select") }}
                         <small class="form-text text-muted">Select which provider to prioritize for currency rates.</small>
                     </div>
+
+                    <div class="mb-3">
+                        {{ form.theme_mode.label(class="form-label") }}
+                        {{ form.theme_mode(class="form-select") }}
+                        <small class="form-text text-muted">Choose between light and dark interface themes.</small>
+                        {% if form.theme_mode.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.theme_mode.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.accent_color.label(class="form-label") }}
+                        {{ form.accent_color(class="form-select") }}
+                        <small class="form-text text-muted">Choose your preferred accent color for the interface.</small>
+                        {% if form.accent_color.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.accent_color.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">

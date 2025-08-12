@@ -11,9 +11,59 @@
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="icon" href="{{ url_for('static', filename='assets/img/icon_main.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='assets/img/icon_main.ico') }}" type="image/x-icon">
+    {% if current_user.is_authenticated and current_user.settings %}
+        {% set theme_mode = current_user.settings.theme_mode or 'light' %}
+        {% set accent_color = current_user.settings.accent_color or 'purple' %}
+    {% else %}
+        {% set theme_mode = 'light' %}
+        {% set accent_color = 'purple' %}
+    {% endif %}
+    
     <style>
         :root {
+            /* Accent Color Variables */
+            {% if accent_color == 'purple' %}
+            --primary-color: #6f42c1;
+            --primary-dark: #5a359a;
+            --primary-light: #8e63d4;
+            {% elif accent_color == 'blue' %}
             --primary-color: #007bff;
+            --primary-dark: #0056b3;
+            --primary-light: #66b3ff;
+            {% elif accent_color == 'green' %}
+            --primary-color: #28a745;
+            --primary-dark: #1e7e34;
+            --primary-light: #5cb85c;
+            {% elif accent_color == 'red' %}
+            --primary-color: #dc3545;
+            --primary-dark: #c82333;
+            --primary-light: #e67e22;
+            {% endif %}
+            
+            /* Theme Mode Variables */
+            {% if theme_mode == 'dark' %}
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+            --border-color: #404040;
+            --navbar-bg: var(--primary-color);
+            --input-bg: #3d3d3d;
+            --input-border: #555555;
+            --shadow-color: rgba(0,0,0,.3);
+            {% else %}
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #e9ecef;
+            --navbar-bg: var(--primary-color);
+            --input-bg: #ffffff;
+            --input-border: #e9ecef;
+            --shadow-color: rgba(0,0,0,.1);
+            {% endif %}
+            
+            /* Other color variables */
             --secondary-color: #6c757d;
             --success-color: #28a745;
             --danger-color: #dc3545;
@@ -24,11 +74,13 @@
         }
         
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
         .navbar-brand {
@@ -37,7 +89,8 @@
         }
         
         .navbar {
-            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+            box-shadow: 0 2px 4px var(--shadow-color);
+            background-color: var(--navbar-bg) !important;
         }
         
         .main-content {
@@ -48,12 +101,14 @@
         .card {
             border: none;
             border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,.1);
+            box-shadow: 0 0 20px var(--shadow-color);
             margin-bottom: 2rem;
+            background-color: var(--card-bg);
+            color: var(--text-color);
         }
         
         .card-header {
-            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             border-radius: 10px 10px 0 0 !important;
             border: none;
@@ -67,12 +122,14 @@
         
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,.2);
+            box-shadow: 0 4px 8px var(--shadow-color);
         }
         
         .table {
             border-radius: 10px;
             overflow: hidden;
+            background-color: var(--card-bg);
+            color: var(--text-color);
         }
         
         .table thead th {
@@ -83,25 +140,57 @@
         }
         
         .table tbody tr:hover {
-            background-color: rgba(0,123,255,.1);
+            background-color: rgba(111, 66, 193, 0.1) !important;
         }
+        
+        {% if accent_color == 'blue' %}
+        .table tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.1) !important;
+        }
+        {% elif accent_color == 'green' %}
+        .table tbody tr:hover {
+            background-color: rgba(40, 167, 69, 0.1) !important;
+        }
+        {% elif accent_color == 'red' %}
+        .table tbody tr:hover {
+            background-color: rgba(220, 53, 69, 0.1) !important;
+        }
+        {% endif %}
         
         .alert {
             border: none;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,.1);
+            box-shadow: 0 2px 10px var(--shadow-color);
         }
         
         .form-control, .form-select {
             border-radius: 25px;
-            border: 2px solid #e9ecef;
+            border: 2px solid var(--input-border);
+            background-color: var(--input-bg);
+            color: var(--text-color);
             transition: all 0.3s ease;
         }
         
         .form-control:focus, .form-select:focus {
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, .25);
+            background-color: var(--input-bg);
+            color: var(--text-color);
         }
+        
+        {% if accent_color == 'blue' %}
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+        }
+        {% elif accent_color == 'green' %}
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, .25);
+        }
+        {% elif accent_color == 'red' %}
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, .25);
+        }
+        {% endif %}
         
         .badge {
             font-size: 0.8rem;
@@ -116,7 +205,7 @@
         
         .subscription-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,.15);
+            box-shadow: 0 8px 25px var(--shadow-color);
         }
         
         .subscription-card.expiring {
@@ -128,7 +217,7 @@
         }
         
         .stats-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
         }
         
@@ -169,7 +258,7 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="theme-{{ theme_mode }} accent-{{ accent_color }}">
     {% if current_user.is_authenticated %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
