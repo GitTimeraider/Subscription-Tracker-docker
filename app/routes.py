@@ -86,7 +86,7 @@ def dashboard():
 
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
-    # Apply preferred provider priority if user specified
+    # Apply preferred provider priority early (before any rate fetch inside subscription helpers)
     if user_settings.preferred_rate_provider:
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{user_settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
@@ -229,10 +229,12 @@ def notification_settings():
 def general_settings():
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = GeneralSettingsForm(obj=settings)
-    # Fetch current (possibly cached) EUR-based rates for display transparency
+    # Apply user preferred provider before fetching
+    if settings.preferred_rate_provider:
+        os.environ['CURRENCY_PROVIDER_PRIORITY'] = f"{settings.preferred_rate_provider},exchangerate_host,frankfurter,ecb"
+    # Fetch rates AFTER applying provider preference
     rates = currency_converter.get_exchange_rates('EUR') or {}
-    # Determine last update timestamp
-    latest_record = ExchangeRate.query.filter_by(base_currency='EUR').order_by(ExchangeRate.created_at.desc()).first()
+    latest_record = ExchangeRate.query.filter_by(base_currency='EUR', provider=currency_converter.last_provider).order_by(ExchangeRate.created_at.desc()).first()
     last_updated = latest_record.created_at if latest_record else None
 
     if form.validate_on_submit():

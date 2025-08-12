@@ -19,26 +19,40 @@ class CurrencyConverter:
     def get_exchange_rates(self, base_currency='EUR', force_refresh=False):
         from app.models import ExchangeRate
 
-        base_currency = 'EUR'  # ECB data is always EUR-based
-        refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))  # default: daily
+        base_currency = 'EUR'  # All providers queried with EUR base
+        refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))
 
-        if not force_refresh:
-            # Try today's record and validate freshness window
-            record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).first()
+        # Build ordered provider list
+        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'exchangerate_host,frankfurter,ecb').split(',')
+        provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
+        primary_provider = provider_priority[0] if provider_priority else None
+
+        if not force_refresh and primary_provider:
+            # Try cache for primary provider only
+            record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
                 age_min = (datetime.utcnow() - record.created_at).total_seconds() / 60.0
                 if age_min <= refresh_minutes:
                     try:
+                        self.last_provider = primary_provider
                         return json.loads(record.rates_json)
                     except Exception:
-                        pass  # fall through to refetch if JSON corrupt
+                        pass
 
-        # Provider priority list (can be overridden)
-        provider_priority = os.getenv('CURRENCY_PROVIDER_PRIORITY', 'exchangerate_host,frankfurter,ecb').split(',')
-        provider_priority = [p.strip().lower() for p in provider_priority if p.strip()]
-
+        # Iterate providers until success; always store provider-specific row
         for provider in provider_priority:
             try:
+                # If not force_refresh, allow using cached row for this provider
+                if not force_refresh:
+                    cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=provider).first()
+                    if cached:
+                        age_min = (datetime.utcnow() - cached.created_at).total_seconds() / 60.0
+                        if age_min <= refresh_minutes:
+                            self.last_provider = provider
+                            try:
+                                return json.loads(cached.rates_json)
+                            except Exception:
+                                pass
                 if provider == 'exchangerate_host':
                     rates = self._fetch_exchangerate_host()
                 elif provider == 'frankfurter':
@@ -47,14 +61,22 @@ class CurrencyConverter:
                     rates = self._fetch_ecb()
                 else:
                     continue
-                if rates and 'USD' in rates:  # minimal sanity check
+                if rates and 'USD' in rates:
                     self.last_provider = provider
-                    ExchangeRate.save_rates({k: str(v) for k,v in rates.items()}, base_currency)
+                    ExchangeRate.save_rates({k: str(v) for k, v in rates.items()}, base_currency, provider=provider)
                     return rates
             except Exception as e:
                 current_app.logger.warning(f"Provider {provider} failed: {e}")
 
-        # All providers failed
+        # If all providers failed, attempt any cached provider for today regardless of priority
+        fallback_cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).order_by(ExchangeRate.created_at.desc()).first()
+        if fallback_cached:
+            try:
+                self.last_provider = fallback_cached.provider
+                return json.loads(fallback_cached.rates_json)
+            except Exception:
+                pass
+
         current_app.logger.error("All currency providers failed; using fallback rates")
         self.last_provider = 'fallback'
         return self._get_fallback_rates(base_currency)
@@ -220,11 +242,12 @@ class CurrencyConverter:
         try:
             from app.models import ExchangeRate
             from app import db
-            today_record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).first()
-            if today_record:
-                db.session.delete(today_record)
+            today_records = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).all()
+            if today_records:
+                for rec in today_records:
+                    db.session.delete(rec)
                 db.session.commit()
-                current_app.logger.info(f"Cleared today's exchange rate cache for base {base_currency}")
+                current_app.logger.info(f"Cleared today's exchange rate cache for base {base_currency} (all providers)")
                 return True
         except Exception as e:
             current_app.logger.error(f"Failed to clear cache: {e}")

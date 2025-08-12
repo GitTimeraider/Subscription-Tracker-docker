@@ -50,46 +50,49 @@ class UserSettings(db.Model):
 
 class ExchangeRate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False, unique=True)
+    date = db.Column(db.Date, nullable=False)
     base_currency = db.Column(db.String(3), nullable=False, default='EUR')
+    provider = db.Column(db.String(40), nullable=False, default='legacy')  # data source identifier
     rates_json = db.Column(db.Text, nullable=False)  # JSON string of exchange rates
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('date', 'base_currency', 'provider', name='uq_rate_date_base_provider'),
+    )
     
     def __repr__(self):
-        return f'<ExchangeRate {self.date} base:{self.base_currency}>'
+        return f'<ExchangeRate {self.date} base:{self.base_currency} provider:{self.provider}>'
     
     @classmethod
-    def get_latest_rates(cls, base_currency='EUR'):
-        """Get the latest exchange rates for today"""
+    def get_latest_rates(cls, base_currency='EUR', provider=None):
+        """Get the latest exchange rates for today for a specific provider (if given)."""
         today = date.today()
-        rate_record = cls.query.filter_by(date=today, base_currency=base_currency).first()
+        query = cls.query.filter_by(date=today, base_currency=base_currency)
+        if provider:
+            query = query.filter_by(provider=provider)
+        rate_record = query.first()
         if rate_record:
             import json
             return json.loads(rate_record.rates_json)
         return None
     
     @classmethod
-    def save_rates(cls, rates, base_currency='EUR'):
-        """Save exchange rates for today"""
+    def save_rates(cls, rates, base_currency='EUR', provider='unknown'):
+        """Save exchange rates for today for the given provider. Upsert semantics."""
         import json
         today = date.today()
-        
-        # Check if rates for today already exist
-        existing_rate = cls.query.filter_by(date=today, base_currency=base_currency).first()
-        
+        existing_rate = cls.query.filter_by(date=today, base_currency=base_currency, provider=provider).first()
         if existing_rate:
-            # Update existing rates
             existing_rate.rates_json = json.dumps(rates)
             existing_rate.created_at = datetime.utcnow()
         else:
-            # Create new rate record
             new_rate = cls(
                 date=today,
                 base_currency=base_currency,
+                provider=provider,
                 rates_json=json.dumps(rates)
             )
             db.session.add(new_rate)
-        
         db.session.commit()
 
 class PaymentMethod(db.Model):
