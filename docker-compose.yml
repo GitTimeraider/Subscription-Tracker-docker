@@ -14,5 +14,7 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
       - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
+  - PUID=${PUID-1000}
+  - PGID=${PGID-1000}
     volumes:
       - ./data:/app/instance

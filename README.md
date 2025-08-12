@@ -135,6 +135,8 @@ services:
 | `ITEMS_PER_PAGE` | Pagination size for lists | 20 |
 | `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates (per provider) | 1440 (24h) |
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
+| `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
+| `PGID` | Host group ID to run the app process as | 1000 |
 
 ### Exchange Rate Providers
 
@@ -153,6 +155,30 @@ Precision: All conversions use Python `Decimal` with high precision to avoid cum
 Attempt Chain Diagnostics: The settings page shows a badge chain like `frankfurter:cache → floatrates:fetched` indicating which providers were consulted and how (cache / fetched / failed / fallback-cached / static). This aids troubleshooting provider outages.
 
 Environment Override: You can predefine `CURRENCY_PROVIDER_PRIORITY` (e.g. `floatrates,frankfurter,erapi_open`) in the container environment; user preference still reshuffles at runtime per session.
+
+### Running as a Specific Host User (PUID/PGID)
+
+To avoid permission issues on the mounted `./data` directory, the image now supports providing a host UID/GID.
+
+Example docker-compose override:
+```yaml
+services:
+   web:
+      environment:
+         - PUID=1001
+         - PGID=1001
+```
+
+Or with plain docker run:
+```bash
+docker run -d \
+   -e PUID=$(id -u) -e PGID=$(id -g) \
+   -v $(pwd)/data:/app/instance \
+   -p 5000:5000 \
+   ghcr.io/gittimeraider/subscription-tracker:latest
+```
+
+On container start an unprivileged user matching those IDs is created/updated and the process is dropped to it using `gosu`.
 
 ### Email Configuration Examples
 
