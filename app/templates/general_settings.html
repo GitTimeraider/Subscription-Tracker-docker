@@ -30,20 +30,7 @@
                         {% endif %}
                     </div>
                     
-                    <div class="mb-3">
-                        {{ form.unirate_api_key.label(class="form-label") }}
-                        {{ form.unirate_api_key(class="form-control", type="password") }}
-                        <small class="form-text text-muted">
-                            Get a free API key from <a href="https://unirateapi.com" target="_blank">unirateapi.com</a> for real-time currency conversion. Without this, fallback exchange rates will be used.
-                        </small>
-                        {% if form.unirate_api_key.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.unirate_api_key.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
+                    <!-- API key removed: ECB rates now used automatically -->
                     
                     <div class="mb-3">
                         {{ form.timezone.label(class="form-label") }}

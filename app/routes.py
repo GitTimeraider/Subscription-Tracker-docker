@@ -66,13 +66,9 @@ def dashboard():
     category_filter = request.args.get('category', 'all')
     status_filter = request.args.get('status', 'all')
     
-    # Base query
     query = Subscription.query.filter_by(user_id=current_user.id)
-    
-    # Apply filters
     if category_filter != 'all':
         query = query.filter_by(category=category_filter)
-    
     if status_filter == 'active':
         query = query.filter_by(is_active=True)
     elif status_filter == 'inactive':
@@ -86,34 +82,17 @@ def dashboard():
             Subscription.end_date <= check_date,
             Subscription.end_date >= datetime.now().date()
         )
-    
     subscriptions = query.order_by(Subscription.end_date.asc()).all()
-    
-    # Get user settings for currency conversion
+
     user_settings = current_user.settings or UserSettings()
-    
-    # Allow currency override from URL parameter
     display_currency = request.args.get('currency', user_settings.currency)
-    
-    # Set up currency converter with user's API key if available
-    if user_settings.unirate_api_key:
-        currency_converter.set_api_key(user_settings.unirate_api_key)
-    
-    # Calculate totals in display currency
+    # ECB rates auto-fetched (no API key)
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
-    
-    # Get categories for filter
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
     categories = [cat[0] for cat in categories if cat[0]]
-    
-    # Check for expiring subscriptions
-    expiring_soon = [sub for sub in subscriptions 
-                    if sub.is_expiring_soon(user_settings.notification_days)]
-    
-    # Get currency symbol for display
+    expiring_soon = [sub for sub in subscriptions if sub.is_expiring_soon(user_settings.notification_days)]
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
-    
     return render_template('dashboard.html', 
                          subscriptions=subscriptions,
                          total_monthly=total_monthly,
@@ -131,7 +110,6 @@ def add_subscription():
     form = SubscriptionForm()
     if form.validate_on_submit():
         payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
-        
         subscription = Subscription(
             name=form.name.data,
             company=form.company.data,
@@ -160,11 +138,9 @@ def edit_subscription(id):
     if subscription.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.dashboard'))
-
     form = SubscriptionForm(obj=subscription)
     if form.validate_on_submit():
         payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
-        
         subscription.name = form.name.data
         subscription.company = form.company.data
         subscription.category = form.category.data
@@ -189,7 +165,6 @@ def toggle_subscription(id):
     if subscription.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.dashboard'))
-
     subscription.is_active = not subscription.is_active
     db.session.commit()
     status = 'activated' if subscription.is_active else 'deactivated'
@@ -203,7 +178,6 @@ def delete_subscription(id):
     if subscription.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.dashboard'))
-
     db.session.delete(subscription)
     db.session.commit()
     flash('Subscription deleted successfully!', 'success')
@@ -214,23 +188,18 @@ def delete_subscription(id):
 def user_settings():
     form = UserSettingsForm(obj=current_user)
     if form.validate_on_submit():
-        # Check current password if trying to change password or email
         if form.new_password.data or form.email.data != current_user.email:
             if not form.current_password.data or not current_user.check_password(form.current_password.data):
                 flash('Current password is required and must be correct', 'error')
                 return render_template('user_settings.html', form=form)
-        
         current_user.username = form.username.data
         current_user.email = form.email.data
-        
         if form.new_password.data:
             current_user.set_password(form.new_password.data)
             flash('Password updated successfully!', 'success')
-        
         db.session.commit()
         flash('Settings updated successfully!', 'success')
         return redirect(url_for('main.user_settings'))
-    
     return render_template('user_settings.html', form=form)
 
 @main.route('/notification_settings', methods=['GET', 'POST'])
@@ -238,21 +207,17 @@ def user_settings():
 def notification_settings():
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = NotificationSettingsForm(obj=settings)
-    
     if form.validate_on_submit():
         if not current_user.settings:
             settings = UserSettings(user_id=current_user.id)
             db.session.add(settings)
         else:
             settings = current_user.settings
-            
         settings.email_notifications = form.email_notifications.data
         settings.notification_days = form.notification_days.data
-        
         db.session.commit()
         flash('Notification settings updated successfully!', 'success')
         return redirect(url_for('main.notification_settings'))
-    
     return render_template('notification_settings.html', form=form)
 
 @main.route('/general_settings', methods=['GET', 'POST'])
@@ -260,22 +225,17 @@ def notification_settings():
 def general_settings():
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = GeneralSettingsForm(obj=settings)
-    
     if form.validate_on_submit():
         if not current_user.settings:
             settings = UserSettings(user_id=current_user.id)
             db.session.add(settings)
         else:
             settings = current_user.settings
-            
         settings.currency = form.currency.data
-        settings.unirate_api_key = form.unirate_api_key.data
         settings.timezone = form.timezone.data
-        
         db.session.commit()
         flash('General settings updated successfully!', 'success')
         return redirect(url_for('main.general_settings'))
-    
     return render_template('general_settings.html', form=form)
 
 @main.route('/email_settings', methods=['GET', 'POST'])
@@ -283,79 +243,52 @@ def general_settings():
 def email_settings():
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = EmailSettingsForm(obj=settings)
-    
     if form.validate_on_submit():
         if not current_user.settings:
             settings = UserSettings(user_id=current_user.id)
             db.session.add(settings)
         else:
             settings = current_user.settings
-            
         settings.mail_server = form.mail_server.data
         settings.mail_port = form.mail_port.data
         settings.mail_use_tls = form.mail_use_tls.data
         settings.mail_username = form.mail_username.data
         settings.mail_password = form.mail_password.data
         settings.mail_from = form.mail_from.data
-        
         db.session.commit()
         flash('Email settings updated successfully!', 'success')
         return redirect(url_for('main.email_settings'))
-    
     return render_template('email_settings.html', form=form)
 
 @main.route('/analytics')
 @login_required
 def analytics():
     subscriptions = Subscription.query.filter_by(user_id=current_user.id).all()
-    
-    # Get user settings for currency conversion
     user_settings = current_user.settings or UserSettings()
-    
-    # Allow currency override from URL parameter
     display_currency = request.args.get('currency', user_settings.currency)
-    
-    # Set up currency converter with user's API key if available
-    if user_settings.unirate_api_key:
-        currency_converter.set_api_key(user_settings.unirate_api_key)
-    
-    # Calculate analytics
     active_subs = [s for s in subscriptions if s.is_active]
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in active_subs)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in active_subs)
-    
-    # Category breakdown
     category_costs = {}
     for sub in active_subs:
         category = sub.category or 'other'
         if category not in category_costs:
             category_costs[category] = 0
         category_costs[category] += sub.get_monthly_cost_in_currency(display_currency)
-    
-    # Billing cycle breakdown
     cycle_costs = {}
     for sub in active_subs:
         cycle = sub.billing_cycle
         if cycle not in cycle_costs:
             cycle_costs[cycle] = 0
         cycle_costs[cycle] += sub.get_monthly_cost_in_currency(display_currency)
-    
-    # Upcoming renewals
     upcoming = []
     for sub in subscriptions:
         if sub.end_date and sub.is_active:
             days_left = sub.days_until_expiry()
             if days_left is not None and days_left <= 30:
-                upcoming.append({
-                    'subscription': sub,
-                    'days_left': days_left
-                })
-    
+                upcoming.append({'subscription': sub,'days_left': days_left})
     upcoming.sort(key=lambda x: x['days_left'])
-    
-    # Get currency symbol for display
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
-    
     return render_template('analytics.html',
                          total_monthly=total_monthly,
                          total_yearly=total_yearly,
@@ -370,36 +303,20 @@ def analytics():
 @main.route('/api/subscription_data')
 @login_required
 def api_subscription_data():
-    """API endpoint for chart data"""
     subscriptions = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
-    
-    # Get user settings for currency conversion
     user_settings = current_user.settings or UserSettings()
-    
-    # Allow currency override from URL parameter
     display_currency = request.args.get('currency', user_settings.currency)
-    
-    # Set up currency converter with user's API key if available
-    if user_settings.unirate_api_key:
-        currency_converter.set_api_key(user_settings.unirate_api_key)
-    
     category_data = {}
     for sub in subscriptions:
         category = sub.category or 'other'
         if category not in category_data:
             category_data[category] = 0
         category_data[category] += sub.get_monthly_cost_in_currency(display_currency)
-    
     return jsonify(category_data)
 
 @main.route('/debug/refresh_rates')
 @login_required
 def debug_refresh_rates():
-    """Force refresh exchange rates and return a small diagnostic payload (admin/dev use)."""
-    user_settings = current_user.settings or UserSettings()
-    if user_settings.unirate_api_key:
-        currency_converter.set_api_key(user_settings.unirate_api_key)
-    # Clear today's cache and refetch
     currency_converter.clear_today_cache('EUR')
     rates = currency_converter.get_exchange_rates('EUR', force_refresh=True) or {}
     sample = {
@@ -407,32 +324,20 @@ def debug_refresh_rates():
         'USD->EUR': currency_converter.convert_amount(1, 'USD', 'EUR', rates=rates),
         'EUR->GBP': currency_converter.convert_amount(1, 'EUR', 'GBP', rates=rates) if 'GBP' in rates else None,
     }
-    return jsonify({
-        'count': len(rates),
-        'usd_rate_raw': rates.get('USD'),
-        'sample_conversions': sample
-    })
+    return jsonify({'count': len(rates),'usd_rate_raw': rates.get('USD'),'sample_conversions': sample})
 
 @main.route('/payment_methods')
 @login_required
 def payment_methods():
-    """List all payment methods for the current user"""
     payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).all()
     return render_template('payment_methods.html', payment_methods=payment_methods)
 
 @main.route('/add_payment_method', methods=['GET', 'POST'])
 @login_required
 def add_payment_method():
-    """Add a new payment method"""
     form = PaymentMethodForm()
     if form.validate_on_submit():
-        payment_method = PaymentMethod(
-            name=form.name.data,
-            payment_type=form.payment_type.data,
-            last_four=form.last_four.data,
-            notes=form.notes.data,
-            user_id=current_user.id
-        )
+        payment_method = PaymentMethod(name=form.name.data,payment_type=form.payment_type.data,last_four=form.last_four.data,notes=form.notes.data,user_id=current_user.id)
         db.session.add(payment_method)
         db.session.commit()
         flash('Payment method added successfully!', 'success')
@@ -442,12 +347,10 @@ def add_payment_method():
 @main.route('/edit_payment_method/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_payment_method(id):
-    """Edit an existing payment method"""
     payment_method = PaymentMethod.query.get_or_404(id)
     if payment_method.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.payment_methods'))
-
     form = PaymentMethodForm(obj=payment_method)
     if form.validate_on_submit():
         payment_method.name = form.name.data
@@ -462,18 +365,14 @@ def edit_payment_method(id):
 @main.route('/delete_payment_method/<int:id>')
 @login_required
 def delete_payment_method(id):
-    """Delete a payment method"""
     payment_method = PaymentMethod.query.get_or_404(id)
     if payment_method.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.payment_methods'))
-
-    # Check if any subscriptions are using this payment method
     subscriptions_using = Subscription.query.filter_by(payment_method_id=id).all()
     if subscriptions_using:
         flash(f'Cannot delete payment method. It is used by {len(subscriptions_using)} subscription(s).', 'error')
         return redirect(url_for('main.payment_methods'))
-
     db.session.delete(payment_method)
     db.session.commit()
     flash('Payment method deleted successfully!', 'success')

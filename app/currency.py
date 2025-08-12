@@ -1,86 +1,65 @@
 import requests
 import json
+import os
 from datetime import datetime, date
 from flask import current_app
-import os
+import xml.etree.ElementTree as ET
+from decimal import Decimal, getcontext, InvalidOperation
+
+# High precision for chained conversions
+getcontext().prec = 28
+
+ECB_DAILY_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 
 class CurrencyConverter:
-    def __init__(self):
-        self.api_key = None
-        
-    def set_api_key(self, api_key):
-        """Set the UniRateAPI API key"""
-        self.api_key = api_key
-    
+    """Currency converter using ECB public daily reference rates (no API key required)."""
+
     def get_exchange_rates(self, base_currency='EUR', force_refresh=False):
-        """Get exchange rates with daily caching using database storage.
-
-        Parameters:
-            base_currency (str): desired base (we standardize on EUR)
-            force_refresh (bool): if True, bypass today's cache and refetch from API
-        """
         from app.models import ExchangeRate
-        
-        # First, try to get today's rates from database unless forcing refresh
+
+        base_currency = 'EUR'  # ECB data is always EUR-based
+        refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))  # default: daily
+
         if not force_refresh:
-            cached_rates = ExchangeRate.get_latest_rates(base_currency)
-            if cached_rates:
-                current_app.logger.debug(f"Using cached exchange rates for {date.today()} (base {base_currency})")
-                return cached_rates
-        
-        # If no cached rates for today, fetch from API
-        if not self.api_key:
-            current_app.logger.warning("No UniRateAPI key provided, using fallback rates")
-            return self._get_fallback_rates(base_currency)
-            
+            # Try today's record and validate freshness window
+            record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).first()
+            if record:
+                age_min = (datetime.utcnow() - record.created_at).total_seconds() / 60.0
+                if age_min <= refresh_minutes:
+                    try:
+                        return json.loads(record.rates_json)
+                    except Exception:
+                        pass  # fall through to refetch if JSON corrupt
+
         try:
-            # UniRateAPI endpoint
-            url = f"https://api.unirateapi.com/v1/latest?base={base_currency}"
-            headers = {
-                'Authorization': f'Bearer {self.api_key}'
-            }
-            
-            current_app.logger.info(f"Fetching fresh exchange rates from UniRateAPI for base: {base_currency}")
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data.get('success', True):  # UniRateAPI uses 'success' field
-                rates = data.get('rates', {}) or {}
-
-                # Heuristic orientation check: for EUR base, USD rate should normally be ~1.0-1.3
-                usd_rate = rates.get('USD')
-                if base_currency == 'EUR' and usd_rate:
-                    if usd_rate < 0.5:  # Likely inverted (i.e. actually EUR per USD)
-                        current_app.logger.warning("Detected possibly inverted rate orientation; inverting all fetched rates")
+            resp = requests.get(ECB_DAILY_URL, timeout=10)
+            resp.raise_for_status()
+            xml_text = resp.text
+            root = ET.fromstring(xml_text)
+            # XML structure: <Envelope><Cube><Cube time='YYYY-MM-DD'><Cube currency='USD' rate='1.0854'/>...</Cube></Cube></Envelope>
+            rates = { 'EUR': 1.0 }
+            ns = {'def': 'http://www.ecb.int/vocabulary/2002-08-01/eurofxref'}  # but file often has default no namespace
+            # Gracefully handle no namespace
+            cube_elements = root.findall('.//Cube[@time]')
+            if not cube_elements:
+                cube_elements = root.findall('.//{*}Cube[@time]')
+            for day in cube_elements:
+                for c in day.findall('Cube'):
+                    curr = c.attrib.get('currency')
+                    rate = c.attrib.get('rate')
+                    if curr and rate:
                         try:
-                            inverted = {}
-                            for c, r in rates.items():
-                                if r not in (0, None):
-                                    inverted[c] = 1/float(r)
-                            rates = inverted
-                        except Exception as inv_e:
-                            current_app.logger.error(f"Failed to invert rates: {inv_e}")
-
-                # Add base currency to rates explicitly
-                rates[base_currency] = 1.0
-                
-                # Save to database for daily caching
-                ExchangeRate.save_rates(rates, base_currency)
-                current_app.logger.info(f"Successfully fetched and cached {len(rates)} exchange rates")
-                
-                return rates
-            else:
-                error_msg = data.get('error', {}).get('message', 'Unknown error')
-                current_app.logger.error(f"UniRateAPI error: {error_msg}")
-                return self._get_fallback_rates(base_currency)
-                
-        except requests.exceptions.RequestException as e:
-            current_app.logger.error(f"Currency API request failed: {e}")
-            return self._get_fallback_rates(base_currency)
+                            rates[curr] = str(rate)  # store as string to preserve exact textual precision
+                        except Exception:
+                            pass
+                break  # only latest day
+            if len(rates) <= 1:
+                raise ValueError('No rates parsed from ECB feed')
+            ExchangeRate.save_rates(rates, base_currency)
+            # Return as dict of Decimal for internal math
+            return {k: (Decimal(v) if k != 'EUR' else Decimal('1')) for k, v in rates.items()}
         except Exception as e:
-            current_app.logger.error(f"Currency conversion error: {e}")
+            current_app.logger.error(f"ECB rates fetch failed: {e}")
             return self._get_fallback_rates(base_currency)
     
     def _get_fallback_rates(self, base_currency='EUR'):
@@ -91,20 +70,32 @@ class CurrencyConverter:
         latest_rate = ExchangeRate.query.filter_by(base_currency=base_currency).order_by(ExchangeRate.date.desc()).first()
         if latest_rate:
             current_app.logger.info(f"Using fallback rates from {latest_rate.date}")
-            return json.loads(latest_rate.rates_json)
+            raw = json.loads(latest_rate.rates_json)
+            # Convert any stored string/float to Decimal safely
+            dec = {}
+            for k, v in raw.items():
+                try:
+                    if k == 'EUR':
+                        dec[k] = Decimal('1')
+                    else:
+                        dec[k] = Decimal(str(v))
+                except (InvalidOperation, TypeError):
+                    continue
+            return dec
         
-        # If no database rates available, use hardcoded fallback rates (approximate values)
+    # If no database rates available, use hardcoded fallback rates (approximate values)
         current_app.logger.warning("Using hardcoded fallback exchange rates")
         if base_currency == 'EUR':
-            return {
-                'EUR': 1.0, 'USD': 1.09, 'GBP': 0.86, 'CAD': 1.48, 'AUD': 1.65,
-                'JPY': 157.0, 'CHF': 0.96, 'CNY': 7.85, 'INR': 91.0, 'SEK': 11.3,
-                'NOK': 11.8, 'DKK': 7.46, 'PLN': 4.35, 'CZK': 24.7, 'HUF': 390.0,
-                'BGN': 1.96, 'RON': 4.97, 'HRK': 7.53, 'RUB': 100.0, 'TRY': 32.0,
-                'BRL': 6.15, 'MXN': 18.5, 'SGD': 1.45, 'HKD': 8.5, 'KRW': 1450.0,
-                'ZAR': 19.8, 'NZD': 1.78, 'THB': 38.5, 'MYR': 5.0, 'PHP': 61.0,
-                'IDR': 16800.0, 'VND': 26500.0
+            base_fallback = {
+                'EUR': '1', 'USD': '1.09', 'GBP': '0.86', 'CAD': '1.48', 'AUD': '1.65',
+                'JPY': '157.0', 'CHF': '0.96', 'CNY': '7.85', 'INR': '91.0', 'SEK': '11.3',
+                'NOK': '11.8', 'DKK': '7.46', 'PLN': '4.35', 'CZK': '24.7', 'HUF': '390.0',
+                'BGN': '1.96', 'RON': '4.97', 'HRK': '7.53', 'RUB': '100.0', 'TRY': '32.0',
+                'BRL': '6.15', 'MXN': '18.5', 'SGD': '1.45', 'HKD': '8.5', 'KRW': '1450.0',
+                'ZAR': '19.8', 'NZD': '1.78', 'THB': '38.5', 'MYR': '5.0', 'PHP': '61.0',
+                'IDR': '16800.0', 'VND': '26500.0'
             }
+            return {k: Decimal(v) for k, v in base_fallback.items()}
         else:
             # For other base currencies, convert from EUR base
             eur_rates = self._get_fallback_rates('EUR')
@@ -112,7 +103,10 @@ class CurrencyConverter:
                 base_rate = eur_rates[base_currency]
                 converted_rates = {}
                 for currency, rate in eur_rates.items():
-                    converted_rates[currency] = rate / base_rate
+                    try:
+                        converted_rates[currency] = (rate / base_rate)
+                    except (InvalidOperation, ZeroDivisionError):
+                        continue
                 return converted_rates
             else:
                 return {base_currency: 1.0}
@@ -130,35 +124,48 @@ class CurrencyConverter:
         if amount is None:
             return 0.0
         if from_currency == to_currency:
-            return amount
+            return float(amount)
 
         # Fetch rates if not provided
         if rates is None:
             rates = self.get_exchange_rates(base_currency)
         if not rates:
-            return amount
+            return float(amount)
 
-        # Ensure base currency rate present
-        if base_currency not in rates:
-            rates[base_currency] = 1.0
+        # Normalize all rates to Decimal
+        dec_rates = {}
+        for k, v in rates.items():
+            try:
+                if isinstance(v, Decimal):
+                    dec_rates[k] = v
+                else:
+                    dec_rates[k] = Decimal(str(v))
+            except (InvalidOperation, TypeError):
+                continue
+        if base_currency not in dec_rates:
+            dec_rates[base_currency] = Decimal('1')
+        try:
+            amount_dec = Decimal(str(amount))
+        except (InvalidOperation, TypeError):
+            return float(amount)
 
         try:
             # Normalize source amount into base currency first
             if from_currency == base_currency:
-                amount_in_base = amount
+                amount_in_base = amount_dec
             else:
-                if from_currency not in rates or not rates[from_currency]:
-                    return amount
-                amount_in_base = amount / rates[from_currency]
+                if from_currency not in dec_rates or not dec_rates[from_currency]:
+                    return float(amount)
+                amount_in_base = amount_dec / dec_rates[from_currency]
 
             # From base to target
             if to_currency == base_currency:
-                return amount_in_base
-            if to_currency not in rates or not rates[to_currency]:
-                return amount
-            return amount_in_base * rates[to_currency]
+                return float(amount_in_base)
+            if to_currency not in dec_rates or not dec_rates[to_currency]:
+                return float(amount)
+            return float(amount_in_base * dec_rates[to_currency])
         except (KeyError, ZeroDivisionError, TypeError):
-            return amount
+            return float(amount)
 
     def clear_today_cache(self, base_currency='EUR'):
         """Clear today's cached rates to force a refetch next call."""

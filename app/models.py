@@ -39,7 +39,7 @@ class UserSettings(db.Model):
     # General settings
     currency = db.Column(db.String(3), default='EUR')
     timezone = db.Column(db.String(50), default='UTC')
-    unirate_api_key = db.Column(db.String(100))  # Changed from fixer_api_key
+    unirate_api_key = db.Column(db.String(100))  # Deprecated: no longer used (ECB rates)
     
     # Relationship
     user = db.relationship('User', backref=db.backref('settings', uselist=False))

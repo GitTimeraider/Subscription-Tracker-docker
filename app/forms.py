@@ -103,7 +103,6 @@ class NotificationSettingsForm(FlaskForm):
 
 class GeneralSettingsForm(FlaskForm):
     currency = SelectField('Preferred Display Currency', validators=[DataRequired()])
-    unirate_api_key = StringField('UniRateAPI Key (for currency conversion)', validators=[Optional()])
     timezone = SelectField('Timezone',
                           choices=[('UTC', 'UTC'), ('US/Eastern', 'Eastern Time'), 
                                  ('US/Central', 'Central Time'), ('US/Mountain', 'Mountain Time'),
