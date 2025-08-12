@@ -39,17 +39,18 @@ def create_app():
             print("Default admin user created: username='admin', password='changeme'")
             print("Please change the default password immediately!")
 
-    # Defer scheduler start until first real request to avoid slowing cold login page
-    @app.before_first_request
-    def _start_scheduler_once():
-        if not getattr(app, '_scheduler_started', False):
-            from app.email import start_scheduler
-            start_scheduler(app)
-            app._scheduler_started = True
-
-    # Lightweight request timing (enabled when PERFORMANCE_LOGGING=1)
+    # Lazy scheduler + perf timer combined (Flask 3 removed before_first_request)
     @app.before_request
-    def _perf_timer_start():
+    def _pre_request_hooks():
+        # Start scheduler once lazily
+        if not getattr(app, '_scheduler_started', False):
+            try:
+                from app.email import start_scheduler
+                start_scheduler(app)
+                app._scheduler_started = True
+            except Exception as e:
+                app.logger.error(f"Failed to start scheduler: {e}")
+        # Start perf timer if enabled
         if app.config.get('PERFORMANCE_LOGGING') or request.environ.get('PERFORMANCE_LOGGING'):
             g._req_start_ts = time.time()
 
