@@ -45,11 +45,19 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - Upcoming renewals dashboard
 - Billing cycle distribution analysis
 
+### 💹 **Accurate Multi-Currency Conversion**
+- Per-user preferred display currency (defaults to EUR)
+- High-precision Decimal math (no floating point drift)
+- Multi-provider live EUR base exchange rates with automatic fallback
+- Cached daily (per provider) with manual refresh & force-refetch
+- Transparent attempt chain + active provider/mismatch badges in settings & dashboard
+
 ### ⚙️ **Powerful Settings**
 - **User Settings**: Change username, email, and password
 - **Notification Settings**: Configure email preferences, timing, currency, and timezone
 - **Email Settings**: Admin-configurable SMTP settings
 - **Filters**: Filter subscriptions by category, status, and expiration
+- **Exchange Rate Provider Selection**: Choose between multiple free, no‑API‑key data sources
 
 ### 🎨 **Beautiful Interface**
 - Modern, responsive design using Bootstrap 5
@@ -116,14 +124,35 @@ services:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SECRET_KEY` | Flask secret key for sessions | Random string |
-| `DATABASE_URL` | Database connection string | SQLite (local file) |
-| `MAIL_SERVER` | SMTP server address | None |
+| `DATABASE_URL` | Database connection string | `sqlite:///subscriptions.db` |
+| `MAIL_SERVER` | SMTP server address | (unset) |
 | `MAIL_PORT` | SMTP server port | 587 |
-| `MAIL_USE_TLS` | Enable TLS for email | true |
-| `MAIL_USERNAME` | SMTP username | None |
-| `MAIL_PASSWORD` | SMTP password | None |
-| `MAIL_FROM` | From email address | None |
+| `MAIL_USE_TLS` | Enable TLS for email (`true`/`false`) | true |
+| `MAIL_USERNAME` | SMTP username | (unset) |
+| `MAIL_PASSWORD` | SMTP password / app password | (unset) |
+| `MAIL_FROM` | From email address | (unset) |
 | `DAYS_BEFORE_EXPIRY` | Default days before expiry to send notification | 7 |
+| `ITEMS_PER_PAGE` | Pagination size for lists | 20 |
+| `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates (per provider) | 1440 (24h) |
+| `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
+
+### Exchange Rate Providers
+
+Currently bundled free, no‑key providers (all EUR base):
+
+1. `frankfurter` – https://api.frankfurter.app (ECB sourced, daily; sometimes mid-day updates)
+2. `floatrates` – https://www.floatrates.com/daily/eur.json (frequent refresh, community mirror)
+3. `erapi_open` – https://open.er-api.com/v6/latest/EUR (daily with status metadata)
+
+You can set a personal preference in General Settings. The system builds a dynamic priority list putting your choice first, followed by the remaining providers, then falls back to: any cached provider for today → most recent historical cached record → static hardcoded approximations (last resort). A mismatch warning appears if your preferred provider is temporarily unavailable.
+
+Manual Refresh: In General Settings click the “Refresh Rates” button (POST `/refresh_rates`) to clear today’s cache and force a live refetch. A debug JSON endpoint is also available at `/debug/refresh_rates` (authenticated) to inspect raw values and sample conversions.
+
+Precision: All conversions use Python `Decimal` with high precision to avoid cumulative rounding issues when summing many subscriptions.
+
+Attempt Chain Diagnostics: The settings page shows a badge chain like `frankfurter:cache → floatrates:fetched` indicating which providers were consulted and how (cache / fetched / failed / fallback-cached / static). This aids troubleshooting provider outages.
+
+Environment Override: You can predefine `CURRENCY_PROVIDER_PRIORITY` (e.g. `floatrates,frankfurter,erapi_open`) in the container environment; user preference still reshuffles at runtime per session.
 
 ### Email Configuration Examples
 
@@ -183,11 +212,19 @@ MAIL_FROM=your-email@outlook.com
 ### Viewing Analytics
 
 Visit the **Analytics** page to see:
-- Total monthly and yearly costs
+- Total monthly and yearly costs (converted into your chosen display currency)
 - Spending breakdown by category
 - Billing cycle distribution
 - Upcoming renewals
 - Cost projections
+
+Behind the scenes, each subscription’s native currency is normalized via EUR base rates, then aggregated. Conversion happens once per request using a cached rates dict for efficiency.
+
+### Currency & Provider Tips
+
+- Set your preferred display currency and provider in General Settings.
+- If totals look stale, click Refresh Rates; check attempt chain for failures.
+- To test fallback, temporarily set an invalid provider order in `CURRENCY_PROVIDER_PRIORITY` and observe the chain (not recommended in production).
 
 ## 🔒 Security Considerations
 
@@ -209,6 +246,14 @@ Visit the **Analytics** page to see:
 1. Stop the application
 2. Delete `subscriptions.db` (⚠️ this will delete all data)
 3. Restart the application to recreate the database
+
+### Exchange Rates Not Updating / Provider Unavailable
+1. Open General Settings and use the Refresh Rates button.
+2. Check the attempt chain badges – look for `failed:` entries.
+3. Ensure outbound HTTPS is allowed from the container/host.
+4. Reduce `CURRENCY_REFRESH_MINUTES` temporarily to force more frequent refetch during testing.
+5. If all live sources fail, the app will log an error and fall back to cached or static rates (may be outdated).
+
 
 ### Performance Issues
 1. Monitor system resources if running many subscriptions
