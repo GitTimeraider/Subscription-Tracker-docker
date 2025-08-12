@@ -281,6 +281,9 @@ def general_settings():
 @main.route('/email_settings', methods=['GET', 'POST'])
 @login_required
 def email_settings():
+    if not current_user.is_admin:
+        flash('Administrator access required.', 'error')
+        return redirect(url_for('main.dashboard'))
     settings = current_user.settings or UserSettings(user_id=current_user.id)
     form = EmailSettingsForm(obj=settings)
     if form.validate_on_submit():

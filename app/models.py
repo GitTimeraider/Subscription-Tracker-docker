@@ -8,6 +8,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     subscriptions = db.relationship('Subscription', backref='user', lazy=True)
 
     def set_password(self, password):
