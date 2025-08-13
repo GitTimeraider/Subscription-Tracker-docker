@@ -22,4 +22,4 @@ ENV FLASK_APP=run.py \
 EXPOSE 5000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "run:app"]
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "run:app"]

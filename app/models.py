@@ -226,36 +226,91 @@ class Subscription(db.Model):
         return delta.days if delta.days >= 0 else 0
 
     def get_monthly_cost_in_currency(self, target_currency):
-        """Get monthly cost converted to target currency using currency converter"""
+        """Get monthly cost converted to target currency using currency converter with timeout protection"""
         from app.currency import currency_converter
         
         if not target_currency or target_currency == self.currency:
             return self.get_monthly_cost()
-        # Reuse a single rates fetch per request by storing on flask.g
+        
+        # Use cached rates to avoid API calls during subscription operations
         try:
             from flask import g
             if not hasattr(g, '_eur_rates_cache'):
-                g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+                # Try to get from cache first, only fetch if absolutely necessary
+                cached_rates = None
+                try:
+                    from app.models import ExchangeRate
+                    from datetime import date
+                    latest = ExchangeRate.query.filter_by(date=date.today(), base_currency='EUR').first()
+                    if latest:
+                        import json
+                        cached_rates = json.loads(latest.rates_json)
+                except Exception:
+                    pass
+                
+                if cached_rates:
+                    from decimal import Decimal
+                    g._eur_rates_cache = {k: Decimal(str(v)) for k, v in cached_rates.items()}
+                else:
+                    # Fallback - fetch rates but with timeout protection
+                    try:
+                        g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+                    except Exception:
+                        # If all else fails, use fallback rates
+                        g._eur_rates_cache = currency_converter._get_fallback_rates('EUR') or {}
             rates = g._eur_rates_cache
         except Exception:
-            rates = currency_converter.get_exchange_rates('EUR') or {}
+            # Final fallback - use static conversion or return original cost
+            try:
+                rates = currency_converter.get_exchange_rates('EUR') or {}
+            except Exception:
+                rates = currency_converter._get_fallback_rates('EUR') or {}
+        
         base_currency = 'EUR'
         monthly_cost_source = self.get_monthly_cost()
         return currency_converter.convert_amount(monthly_cost_source, self.currency or base_currency, target_currency, rates=rates, base_currency=base_currency)
     
     def get_yearly_cost_in_currency(self, target_currency):
-        """Get yearly cost converted to target currency using currency converter"""
+        """Get yearly cost converted to target currency using currency converter with timeout protection"""
         from app.currency import currency_converter
         
         if not target_currency or target_currency == self.currency:
             return self.get_yearly_cost()
+        
+        # Use same caching strategy as monthly cost
         try:
             from flask import g
             if not hasattr(g, '_eur_rates_cache'):
-                g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+                # Try to get from cache first, only fetch if absolutely necessary
+                cached_rates = None
+                try:
+                    from app.models import ExchangeRate
+                    from datetime import date
+                    latest = ExchangeRate.query.filter_by(date=date.today(), base_currency='EUR').first()
+                    if latest:
+                        import json
+                        cached_rates = json.loads(latest.rates_json)
+                except Exception:
+                    pass
+                
+                if cached_rates:
+                    from decimal import Decimal
+                    g._eur_rates_cache = {k: Decimal(str(v)) for k, v in cached_rates.items()}
+                else:
+                    # Fallback - fetch rates but with timeout protection
+                    try:
+                        g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+                    except Exception:
+                        # If all else fails, use fallback rates
+                        g._eur_rates_cache = currency_converter._get_fallback_rates('EUR') or {}
             rates = g._eur_rates_cache
         except Exception:
-            rates = currency_converter.get_exchange_rates('EUR') or {}
+            # Final fallback - use static conversion or return original cost
+            try:
+                rates = currency_converter.get_exchange_rates('EUR') or {}
+            except Exception:
+                rates = currency_converter._get_fallback_rates('EUR') or {}
+        
         base_currency = 'EUR'
         yearly_cost_source = self.get_yearly_cost()
         return currency_converter.convert_amount(yearly_cost_source, self.currency or base_currency, target_currency, rates=rates, base_currency=base_currency)

@@ -1,11 +1,32 @@
-from flask import Flask, g, request
+from flask import Flask, g, request, render_template
 import time
+import signal
+from contextlib import contextmanager
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
 
 db = SQLAlchemy()
 login_manager = LoginManager()
+
+class TimeoutError(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("Operation timed out")
+
+@contextmanager
+def timeout(seconds):
+    """Context manager for operation timeout"""
+    # Set the signal handler and a alarm
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        # Restore the old signal handler and cancel the alarm
+        signal.signal(signal.SIGALRM, old_handler)
+        signal.alarm(0)
 
 def create_app():
     app = Flask(__name__)
@@ -51,6 +72,10 @@ def create_app():
         if path.startswith('/static') or path in ('/login','/','/favicon.ico'):
             return
 
+        # Set database timeout to prevent long-running queries
+        if hasattr(db.engine, 'pool') and hasattr(db.engine.pool, '_timeout'):
+            db.engine.pool._timeout = 30  # 30 second timeout for database operations
+
         # Only start scheduler after a non-auth (post-login) request to reduce cold-login latency
         if not getattr(app, '_scheduler_started', False):
             try:
@@ -73,5 +98,19 @@ def create_app():
             else:
                 app.logger.debug(f"Request {request.method} {request.path} {elapsed_ms:.1f} ms")
         return response
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()
+        app.logger.error(f"Internal server error: {error}")
+        return render_template('500.html'), 500
+
+    @app.errorhandler(TimeoutError)
+    def timeout_error(error):
+        db.session.rollback()
+        app.logger.error(f"Request timeout: {error}")
+        from flask import flash, redirect, url_for
+        flash('The operation timed out. Please try again.', 'error')
+        return redirect(url_for('main.dashboard'))
 
     return app

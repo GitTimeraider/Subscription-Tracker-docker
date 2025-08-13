@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory, current_app
 from urllib.parse import urlparse
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
@@ -10,6 +10,31 @@ from datetime import datetime, timedelta, date
 import os
 
 main = Blueprint('main', __name__)
+
+@main.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Check database connectivity
+        db.session.execute('SELECT 1')
+        
+        # Check if currency converter is working
+        from app.currency import currency_converter
+        rates_available = bool(currency_converter._get_fallback_rates('EUR'))
+        
+        return jsonify({
+            'status': 'healthy',
+            'database': 'ok',
+            'currency_rates': 'ok' if rates_available else 'degraded',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 @main.route('/favicon.ico')
 def favicon():
@@ -122,18 +147,38 @@ def dashboard():
 
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
+    
     # Apply preferred provider priority early (before any rate fetch inside subscription helpers)
     if user_settings.preferred_rate_provider:
         defaults = ['frankfurter','floatrates','erapi_open']
         priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
-    total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
-    total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
+    
+    # Pre-fetch exchange rates once to avoid multiple API calls during cost calculations
+    try:
+        from flask import g
+        if not hasattr(g, '_eur_rates_cache'):
+            g._eur_rates_cache = currency_converter.get_exchange_rates('EUR') or {}
+    except Exception as e:
+        current_app.logger.warning(f"Failed to pre-fetch exchange rates: {e}")
+        # Continue without rates - will use fallback
+    
+    # Calculate totals with better error handling
+    try:
+        total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
+        total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in subscriptions if sub.is_active)
+    except Exception as e:
+        current_app.logger.error(f"Error calculating costs: {e}")
+        total_monthly = 0
+        total_yearly = 0
+        flash('Exchange rates temporarily unavailable. Costs may not be accurate.', 'warning')
+    
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
     categories = [cat[0] for cat in categories if cat[0]]
     expiring_soon = [sub for sub in subscriptions if sub.is_expiring_soon(user_settings.notification_days)]
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
     active_provider = currency_converter.last_provider
+    
     return render_template('dashboard.html', 
                          subscriptions=subscriptions,
                          total_monthly=total_monthly,
@@ -152,26 +197,32 @@ def dashboard():
 def add_subscription():
     form = SubscriptionForm()
     if form.validate_on_submit():
-        payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
-        subscription = Subscription(
-            name=form.name.data,
-            company=form.company.data,
-            category=form.category.data,
-            cost=form.cost.data,
-            currency=form.currency.data,
-            billing_cycle=form.billing_cycle.data,
-            custom_period_type=form.custom_period_type.data if form.billing_cycle.data == 'custom' else None,
-            custom_period_value=form.custom_period_value.data if form.billing_cycle.data == 'custom' else None,
-            payment_method_id=payment_method_id,
-            start_date=form.start_date.data,
-            end_date=form.end_date.data,
-            notes=form.notes.data,
-            user_id=current_user.id
-        )
-        db.session.add(subscription)
-        db.session.commit()
-        flash('Subscription added successfully!', 'success')
-        return redirect(url_for('main.dashboard'))
+        try:
+            payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
+            subscription = Subscription(
+                name=form.name.data,
+                company=form.company.data,
+                category=form.category.data,
+                cost=form.cost.data,
+                currency=form.currency.data,
+                billing_cycle=form.billing_cycle.data,
+                custom_period_type=form.custom_period_type.data if form.billing_cycle.data == 'custom' else None,
+                custom_period_value=form.custom_period_value.data if form.billing_cycle.data == 'custom' else None,
+                payment_method_id=payment_method_id,
+                start_date=form.start_date.data,
+                end_date=form.end_date.data,
+                notes=form.notes.data,
+                user_id=current_user.id
+            )
+            db.session.add(subscription)
+            db.session.commit()
+            flash('Subscription added successfully!', 'success')
+            return redirect(url_for('main.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error adding subscription: {e}")
+            flash('An error occurred while saving the subscription. Please try again.', 'error')
+            return render_template('add_subscription.html', form=form)
     return render_template('add_subscription.html', form=form)
 
 @main.route('/edit_subscription/<int:id>', methods=['GET', 'POST'])
@@ -183,22 +234,28 @@ def edit_subscription(id):
         return redirect(url_for('main.dashboard'))
     form = SubscriptionForm(obj=subscription)
     if form.validate_on_submit():
-        payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
-        subscription.name = form.name.data
-        subscription.company = form.company.data
-        subscription.category = form.category.data
-        subscription.cost = form.cost.data
-        subscription.currency = form.currency.data
-        subscription.billing_cycle = form.billing_cycle.data
-        subscription.custom_period_type = form.custom_period_type.data if form.billing_cycle.data == 'custom' else None
-        subscription.custom_period_value = form.custom_period_value.data if form.billing_cycle.data == 'custom' else None
-        subscription.payment_method_id = payment_method_id
-        subscription.start_date = form.start_date.data
-        subscription.end_date = form.end_date.data
-        subscription.notes = form.notes.data
-        db.session.commit()
-        flash('Subscription updated successfully!', 'success')
-        return redirect(url_for('main.dashboard'))
+        try:
+            payment_method_id = form.payment_method_id.data if form.payment_method_id.data != 0 else None
+            subscription.name = form.name.data
+            subscription.company = form.company.data
+            subscription.category = form.category.data
+            subscription.cost = form.cost.data
+            subscription.currency = form.currency.data
+            subscription.billing_cycle = form.billing_cycle.data
+            subscription.custom_period_type = form.custom_period_type.data if form.billing_cycle.data == 'custom' else None
+            subscription.custom_period_value = form.custom_period_value.data if form.billing_cycle.data == 'custom' else None
+            subscription.payment_method_id = payment_method_id
+            subscription.start_date = form.start_date.data
+            subscription.end_date = form.end_date.data
+            subscription.notes = form.notes.data
+            db.session.commit()
+            flash('Subscription updated successfully!', 'success')
+            return redirect(url_for('main.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating subscription: {e}")
+            flash('An error occurred while updating the subscription. Please try again.', 'error')
+            return render_template('edit_subscription.html', form=form, subscription=subscription)
     return render_template('edit_subscription.html', form=form, subscription=subscription)
 
 @main.route('/toggle_subscription/<int:id>')

@@ -18,6 +18,34 @@ class CurrencyConverter:
     def __init__(self):
         self.last_provider = None
         self.last_attempt_chain = []  # list of (provider, status)
+        self._circuit_breaker = {}  # Track failed providers
+
+    def _is_circuit_open(self, provider):
+        """Check if circuit breaker is open for a provider"""
+        if provider not in self._circuit_breaker:
+            return False
+        
+        failures, last_failure = self._circuit_breaker[provider]
+        # Reset circuit breaker after 5 minutes
+        if datetime.now().timestamp() - last_failure > 300:
+            del self._circuit_breaker[provider]
+            return False
+        
+        # Open circuit after 3 consecutive failures
+        return failures >= 3
+
+    def _record_failure(self, provider):
+        """Record a failure for circuit breaker"""
+        if provider not in self._circuit_breaker:
+            self._circuit_breaker[provider] = (1, datetime.now().timestamp())
+        else:
+            failures, _ = self._circuit_breaker[provider]
+            self._circuit_breaker[provider] = (failures + 1, datetime.now().timestamp())
+
+    def _record_success(self, provider):
+        """Record a success and reset circuit breaker"""
+        if provider in self._circuit_breaker:
+            del self._circuit_breaker[provider]
 
     def get_exchange_rates(self, base_currency: str = 'EUR', force_refresh: bool = False):
         from app.models import ExchangeRate
@@ -43,6 +71,11 @@ class CurrencyConverter:
 
         for provider in provider_priority:
             try:
+                # Skip provider if circuit breaker is open
+                if self._is_circuit_open(provider):
+                    self.last_attempt_chain.append((provider, 'circuit-open'))
+                    continue
+                    
                 if not force_refresh:
                     cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=provider).first()
                     if cached:
@@ -64,11 +97,13 @@ class CurrencyConverter:
                     continue
                 if rates and 'USD' in rates:
                     self.last_provider = provider
+                    self._record_success(provider)  # Reset circuit breaker on success
                     ExchangeRate.save_rates({k: str(v) for k, v in rates.items()}, base_currency, provider=provider)
                     self.last_attempt_chain.append((provider, 'fetched'))
                     return rates
             except Exception as e:
                 current_app.logger.warning(f"Provider {provider} failed: {e}")
+                self._record_failure(provider)  # Record failure for circuit breaker
                 self.last_attempt_chain.append((provider, f'failed:{e.__class__.__name__}'))
 
         fallback_cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency).order_by(ExchangeRate.created_at.desc()).first()
@@ -87,7 +122,7 @@ class CurrencyConverter:
 
     def _fetch_frankfurter(self):
         url = 'https://api.frankfurter.app/latest?from=EUR'
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=5)  # Reduced timeout from 10 to 5 seconds
         r.raise_for_status()
         data = r.json()
         rates = data.get('rates') or {}
@@ -100,7 +135,7 @@ class CurrencyConverter:
         return out
 
     def _fetch_floatrates(self):
-        r = requests.get(FLOATRATES_URL, timeout=10)
+        r = requests.get(FLOATRATES_URL, timeout=5)  # Reduced timeout from 10 to 5 seconds
         r.raise_for_status()
         data = r.json()  # keys are lowercase currency codes
         out = {'EUR': Decimal('1')}
@@ -116,7 +151,7 @@ class CurrencyConverter:
         return out
 
     def _fetch_erapi_open(self):
-        r = requests.get(ERAPI_URL, timeout=10)
+        r = requests.get(ERAPI_URL, timeout=5)  # Reduced timeout from 10 to 5 seconds
         r.raise_for_status()
         data = r.json()
         if data.get('result') != 'success':
