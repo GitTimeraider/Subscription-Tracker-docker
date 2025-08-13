@@ -182,19 +182,44 @@
         
         .table tbody tr:hover {
             background-color: rgba(111, 66, 193, 0.1) !important;
+            {% if theme_mode == 'dark' %}
+            color: #ffffff !important;
+            {% endif %}
         }
         
         {% if accent_color == 'blue' %}
         .table tbody tr:hover {
             background-color: rgba(0, 123, 255, 0.1) !important;
+            {% if theme_mode == 'dark' %}
+            color: #ffffff !important;
+            {% endif %}
         }
         {% elif accent_color == 'green' %}
         .table tbody tr:hover {
             background-color: rgba(40, 167, 69, 0.1) !important;
+            {% if theme_mode == 'dark' %}
+            color: #ffffff !important;
+            {% endif %}
         }
         {% elif accent_color == 'red' %}
         .table tbody tr:hover {
             background-color: rgba(220, 53, 69, 0.1) !important;
+            {% if theme_mode == 'dark' %}
+            color: #ffffff !important;
+            {% endif %}
+        }
+        {% endif %}
+        
+        /* Ensure all text in hovered table rows remains visible in dark mode */
+        {% if theme_mode == 'dark' %}
+        .table tbody tr:hover td {
+            color: #ffffff !important;
+        }
+        .table tbody tr:hover td * {
+            color: #ffffff !important;
+        }
+        .table tbody tr:hover .badge {
+            color: #000000 !important;
         }
         {% endif %}
         
