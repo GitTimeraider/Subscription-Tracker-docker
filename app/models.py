@@ -29,14 +29,6 @@ class UserSettings(db.Model):
     email_notifications = db.Column(db.Boolean, default=True)
     notification_days = db.Column(db.Integer, default=7)
     
-    # SMTP settings for email notifications
-    mail_server = db.Column(db.String(100))
-    mail_port = db.Column(db.Integer, default=587)
-    mail_use_tls = db.Column(db.Boolean, default=True)
-    mail_username = db.Column(db.String(100))
-    mail_password = db.Column(db.String(100))
-    mail_from = db.Column(db.String(100))
-    
     # General settings
     currency = db.Column(db.String(3), default='EUR')
     timezone = db.Column(db.String(50), default='UTC')

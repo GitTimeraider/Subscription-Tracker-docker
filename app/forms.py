@@ -128,14 +128,6 @@ class GeneralSettingsForm(FlaskForm):
         self.currency.choices = currency_converter.get_supported_currencies()
     # Preselect provider if settings exist on the object
 
-class EmailSettingsForm(FlaskForm):
-    mail_server = StringField('SMTP Server', validators=[Optional()])
-    mail_port = IntegerField('SMTP Port', validators=[Optional(), NumberRange(min=1, max=65535)])
-    mail_use_tls = BooleanField('Use TLS')
-    mail_username = StringField('Email Username', validators=[Optional(), Email()])
-    mail_password = PasswordField('Email Password', validators=[Optional()])
-    mail_from = StringField('From Email Address', validators=[Optional(), Email()])
-
 class PaymentMethodForm(FlaskForm):
     name = StringField('Payment Method Name', validators=[DataRequired(), Length(min=1, max=100)])
     payment_type = SelectField('Type', 

@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate
 from app.forms import (LoginForm, RegistrationForm, SubscriptionForm, UserSettingsForm, 
-                      NotificationSettingsForm, GeneralSettingsForm, EmailSettingsForm, PaymentMethodForm)
+                      NotificationSettingsForm, GeneralSettingsForm, PaymentMethodForm)
 from app.currency import currency_converter
 from datetime import datetime, timedelta, date
 import os
@@ -363,31 +363,6 @@ def general_settings():
     if settings.preferred_rate_provider:
         form.preferred_rate_provider.data = settings.preferred_rate_provider
     return render_template('general_settings.html', form=form, rates=rates, last_updated=last_updated, provider=currency_converter.last_provider, currency_converter=currency_converter, requested_provider=settings.preferred_rate_provider)
-
-@main.route('/email_settings', methods=['GET', 'POST'])
-@login_required
-def email_settings():
-    if not current_user.is_admin:
-        flash('Administrator access required.', 'error')
-        return redirect(url_for('main.dashboard'))
-    settings = current_user.settings or UserSettings(user_id=current_user.id)
-    form = EmailSettingsForm(obj=settings)
-    if form.validate_on_submit():
-        if not current_user.settings:
-            settings = UserSettings(user_id=current_user.id)
-            db.session.add(settings)
-        else:
-            settings = current_user.settings
-        settings.mail_server = form.mail_server.data
-        settings.mail_port = form.mail_port.data
-        settings.mail_use_tls = form.mail_use_tls.data
-        settings.mail_username = form.mail_username.data
-        settings.mail_password = form.mail_password.data
-        settings.mail_from = form.mail_from.data
-        db.session.commit()
-        flash('Email settings updated successfully!', 'success')
-        return redirect(url_for('main.email_settings'))
-    return render_template('email_settings.html', form=form)
 
 @main.route('/analytics')
 @login_required
