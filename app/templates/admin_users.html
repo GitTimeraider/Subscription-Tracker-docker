@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Settings - User Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-users-cog me-2"></i>User Management
+                </h2>
+                <a href="{{ url_for('main.admin_add_user') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add User
+                </a>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-user me-1"></i>Username</th>
+                                <th><i class="fas fa-envelope me-1"></i>Email</th>
+                                <th><i class="fas fa-shield-alt me-1"></i>Role</th>
+                                <th><i class="fas fa-list me-1"></i>Subscriptions</th>
+                                <th><i class="fas fa-cog me-1"></i>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                    {% if user.id == current_user.id %}
+                                        <span class="badge bg-info ms-2">You</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email or 'Not set' }}</td>
+                                <td>
+                                    {% if user.is_admin %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-crown me-1"></i>Admin
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-user me-1"></i>Standard
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ user.subscriptions|length }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('main.admin_edit_user', user_id=user.id) }}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="Edit User">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if user.id != current_user.id and not (user.is_admin and users|selectattr('is_admin', 'equalto', true)|list|length <= 1) %}
+                                        <a href="{{ url_for('main.admin_delete_user', user_id=user.id) }}" 
+                                           class="btn btn-sm btn-outline-danger" 
+                                           title="Delete User"
+                                           onclick="return confirm('Are you sure you want to delete user {{ user.username }}? This will also delete all their subscriptions and cannot be undone.')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h4>No users found</h4>
+                    <p class="text-muted">This shouldn't happen - there should always be at least one admin user.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>User Management Information
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-check text-success me-2"></i>Each user has their own subscriptions and settings</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Admin users can manage all other users</li>
+                    <li><i class="fas fa-check text-success me-2"></i>You cannot delete yourself while logged in</li>
+                    <li><i class="fas fa-check text-success me-2"></i>There must always be at least one admin user</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Deleting a user will also delete all their subscriptions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

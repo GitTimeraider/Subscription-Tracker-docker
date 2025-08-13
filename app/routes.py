@@ -4,7 +4,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate
 from app.forms import (LoginForm, RegistrationForm, SubscriptionForm, UserSettingsForm, 
-                      NotificationSettingsForm, GeneralSettingsForm, PaymentMethodForm)
+                      NotificationSettingsForm, GeneralSettingsForm, PaymentMethodForm,
+                      AdminUserForm, AdminEditUserForm)
 from app.currency import currency_converter
 from datetime import datetime, timedelta, date
 import os
@@ -63,27 +64,6 @@ def login():
             return redirect(url_for('main.dashboard'))
         flash('Invalid username or password', 'error')
     return render_template('login.html', form=form)
-
-@main.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
-    
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.email.data)
-        user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        
-        # Create default user settings
-        settings = UserSettings(user_id=user.id)
-        db.session.add(settings)
-        db.session.commit()
-        
-        flash('Registration successful! Please login.', 'success')
-        return redirect(url_for('main.login'))
-    return render_template('register.html', form=form)
 
 @main.route('/logout')
 @login_required
@@ -509,3 +489,142 @@ def delete_payment_method(id):
     db.session.commit()
     flash('Payment method deleted successfully!', 'success')
     return redirect(url_for('main.payment_methods'))
+
+# Admin User Management Routes
+@main.route('/admin/users')
+@login_required
+def admin_users():
+    if not current_user.is_admin:
+        flash('Administrator access required.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    users = User.query.all()
+    return render_template('admin_users.html', users=users)
+
+@main.route('/admin/users/add', methods=['GET', 'POST'])
+@login_required
+def admin_add_user():
+    if not current_user.is_admin:
+        flash('Administrator access required.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    form = AdminUserForm()
+    if form.validate_on_submit():
+        # Check if username already exists
+        existing_user = User.query.filter_by(username=form.username.data).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'error')
+            return render_template('admin_add_user.html', form=form)
+        
+        # Check if email already exists
+        existing_email = User.query.filter_by(email=form.email.data).first()
+        if existing_email:
+            flash('Email already registered. Please choose a different one.', 'error')
+            return render_template('admin_add_user.html', form=form)
+        
+        try:
+            user = User(
+                username=form.username.data,
+                email=form.email.data,
+                is_admin=form.is_admin.data
+            )
+            user.set_password(form.password.data)
+            db.session.add(user)
+            db.session.commit()
+            
+            # Create default user settings
+            settings = UserSettings(user_id=user.id)
+            db.session.add(settings)
+            db.session.commit()
+            
+            flash(f'User {user.username} created successfully!', 'success')
+            return redirect(url_for('main.admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating user: {e}")
+            flash('An error occurred while creating the user. Please try again.', 'error')
+    
+    return render_template('admin_add_user.html', form=form)
+
+@main.route('/admin/users/edit/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Administrator access required.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    form = AdminEditUserForm(obj=user)
+    
+    # Check if this is the last admin for validation
+    admin_count = User.query.filter_by(is_admin=True).count()
+    is_last_admin = user.is_admin and admin_count <= 1
+    
+    if form.validate_on_submit():
+        # Prevent removing admin role from last admin
+        if is_last_admin and not form.is_admin.data:
+            flash('Cannot remove admin role from the last admin user.', 'error')
+            return render_template('admin_edit_user.html', form=form, user=user, is_last_admin=is_last_admin)
+        
+        # Check if username already exists (exclude current user)
+        existing_user = User.query.filter(User.username == form.username.data, User.id != user_id).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'error')
+            return render_template('admin_edit_user.html', form=form, user=user, is_last_admin=is_last_admin)
+        
+        # Check if email already exists (exclude current user)
+        existing_email = User.query.filter(User.email == form.email.data, User.id != user_id).first()
+        if existing_email:
+            flash('Email already registered. Please choose a different one.', 'error')
+            return render_template('admin_edit_user.html', form=form, user=user, is_last_admin=is_last_admin)
+        
+        try:
+            user.username = form.username.data
+            user.email = form.email.data
+            user.is_admin = form.is_admin.data
+            
+            if form.new_password.data:
+                user.set_password(form.new_password.data)
+            
+            db.session.commit()
+            flash(f'User {user.username} updated successfully!', 'success')
+            return redirect(url_for('main.admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating user: {e}")
+            flash('An error occurred while updating the user. Please try again.', 'error')
+    
+    return render_template('admin_edit_user.html', form=form, user=user, is_last_admin=is_last_admin)
+
+@main.route('/admin/users/delete/<int:user_id>')
+@login_required
+def admin_delete_user(user_id):
+    if not current_user.is_admin:
+        flash('Administrator access required.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Prevent deleting themselves
+    if user.id == current_user.id:
+        flash('You cannot delete your own account while logged in.', 'error')
+        return redirect(url_for('main.admin_users'))
+    
+    # Prevent deleting the last admin
+    if user.is_admin:
+        admin_count = User.query.filter_by(is_admin=True).count()
+        if admin_count <= 1:
+            flash('Cannot delete the last admin user.', 'error')
+            return redirect(url_for('main.admin_users'))
+    
+    try:
+        # Delete user's settings and subscriptions (cascade should handle this)
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User {user.username} deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting user: {e}")
+        flash('An error occurred while deleting the user. Please try again.', 'error')
+    
+    return redirect(url_for('main.admin_users'))

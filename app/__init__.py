@@ -44,9 +44,10 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-        # Create default admin user if none exists
+        # Create default admin user if no admin users exist
         from app.models import User, UserSettings
-        if not User.query.first():
+        admin_exists = User.query.filter_by(is_admin=True).first()
+        if not admin_exists:
             default_user = User(username='admin', email='admin@example.com', is_admin=True)
             default_user.set_password('changeme')
             db.session.add(default_user)

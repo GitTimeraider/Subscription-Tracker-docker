@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Subscription Tracker{% endblock %}
+{% block title %}Add User - Admin Settings{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header text-center">
+            <div class="card-header">
                 <h2 class="mb-0">
-                    <i class="fas fa-credit-card me-2"></i>Login
+                    <i class="fas fa-user-plus me-2"></i>Add New User
                 </h2>
             </div>
             <div class="card-body">
@@ -28,8 +28,21 @@
                     </div>
                     
                     <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.email.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
                         {{ form.password.label(class="form-label") }}
                         {{ form.password(class="form-control") }}
+                        <small class="form-text text-muted">Minimum 6 characters</small>
                         {% if form.password.errors %}
                             <div class="text-danger mt-1">
                                 {% for error in form.password.errors %}
@@ -39,9 +52,22 @@
                         {% endif %}
                     </div>
                     
-                    <div class="d-grid">
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_admin(class="form-check-input") }}
+                            {{ form.is_admin.label(class="form-check-label") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            Admin users can manage other users and access admin settings
+                        </small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.admin_users') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Users
+                        </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                            <i class="fas fa-save me-2"></i>Create User
                         </button>
                     </div>
                 </form>

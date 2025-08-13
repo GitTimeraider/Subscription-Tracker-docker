@@ -9,7 +9,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
-    subscriptions = db.relationship('Subscription', backref='user', lazy=True)
+    subscriptions = db.relationship('Subscription', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -40,7 +40,7 @@ class UserSettings(db.Model):
     accent_color = db.Column(db.String(10), default='purple')  # 'blue', 'purple', etc.
     
     # Relationship
-    user = db.relationship('User', backref=db.backref('settings', uselist=False))
+    user = db.relationship('User', backref=db.backref('settings', uselist=False, cascade='all, delete-orphan'))
 
     def __repr__(self):
         return f'<UserSettings {self.user_id}>'

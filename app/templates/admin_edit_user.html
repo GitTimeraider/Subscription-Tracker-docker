@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - Admin Settings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    <i class="fas fa-user-edit me-2"></i>Edit User: {{ user.username }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                        {% if form.username.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.username.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.email.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.new_password.label(class="form-label") }}
+                        {{ form.new_password(class="form-control") }}
+                        <small class="form-text text-muted">Leave blank to keep current password</small>
+                        {% if form.new_password.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.new_password.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_admin(class="form-check-input", disabled=is_last_admin) }}
+                            {{ form.is_admin.label(class="form-check-label") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            Admin users can manage other users and access admin settings
+                        </small>
+                        {% if is_last_admin %}
+                            <div class="alert alert-warning mt-2 mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                This is the last admin user. Admin role cannot be removed.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-chart-bar me-2"></i>User Statistics
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Subscriptions:</strong> {{ user.subscriptions|length }}</p>
+                                    <p class="mb-1"><strong>Role:</strong> 
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-warning text-dark">Admin</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Standard</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    {% if user.subscriptions %}
+                                        <p class="mb-1"><strong>Active Subscriptions:</strong> 
+                                            {{ user.subscriptions|selectattr('is_active', 'equalto', true)|list|length }}
+                                        </p>
+                                        <p class="mb-1"><strong>Inactive Subscriptions:</strong> 
+                                            {{ user.subscriptions|selectattr('is_active', 'equalto', false)|list|length }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{{ url_for('main.admin_users') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Users
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

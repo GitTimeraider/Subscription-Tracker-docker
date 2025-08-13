@@ -141,3 +141,15 @@ class PaymentMethodForm(FlaskForm):
                       validators=[DataRequired()])
     last_four = StringField('Last 4 Digits (optional)', validators=[Optional(), Length(max=4)])
     notes = TextAreaField('Notes', validators=[Optional()])
+
+class AdminUserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    is_admin = BooleanField('Admin User')
+
+class AdminEditUserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    new_password = PasswordField('New Password (leave blank to keep current)', validators=[Optional(), Length(min=6)])
+    is_admin = BooleanField('Admin User')

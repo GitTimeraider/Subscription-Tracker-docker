@@ -345,6 +345,12 @@
                             <li><a class="dropdown-item" href="{{ url_for('main.notification_settings') }}">
                                 <i class="fas fa-bell me-2"></i>Notifications
                             </a></li>
+                            {% if current_user.is_admin %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.admin_users') }}">
+                                <i class="fas fa-users-cog me-2"></i>Admin Settings
+                            </a></li>
+                            {% endif %}
                         </ul>
                     </li>
                 </ul>
