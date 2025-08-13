@@ -121,6 +121,8 @@ services:
 
 ### Environment Variables
 
+All of these are optional, though it is adviced to use the SECRET_KEY and the MAIL_ environmentals to the very least.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SECRET_KEY` | Flask secret key for sessions | Random string |
@@ -137,7 +139,6 @@ services:
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
 | `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
 | `PGID` | Host group ID to run the app process as | 1000 |
-| `PERFORMANCE_LOGGING` | Set to 1 to log slow (>200ms) requests with timing | (unset) |
 
 ### Exchange Rate Providers
 
@@ -289,6 +290,7 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
