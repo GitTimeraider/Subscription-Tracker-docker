@@ -374,7 +374,11 @@ def analytics():
         if sub.end_date and sub.is_active:
             days_left = sub.days_until_expiry()
             if days_left is not None and days_left <= 30:
-                upcoming.append({'subscription': sub,'days_left': days_left})
+                upcoming.append({
+                    'subscription': sub,
+                    'days_left': days_left,
+                    'cost_in_display_currency': sub.get_raw_cost_in_currency(display_currency)
+                })
     upcoming.sort(key=lambda x: x['days_left'])
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
     active_provider = currency_converter.last_provider

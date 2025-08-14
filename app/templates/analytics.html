@@ -5,14 +5,6 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-chart-line me-2"></i>Analytics</h1>
-    <div class="btn-group" role="group">
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchCurrency('USD')">
-            <i class="fas fa-dollar-sign me-1"></i>USD
-        </button>
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchCurrency('EUR')">
-            <i class="fas fa-euro-sign me-1"></i>EUR
-        </button>
-    </div>
 </div>
 
 <div class="row mb-4">
@@ -101,7 +93,7 @@
                                 {% for category, cost in category_costs.items() %}
                                 <tr>
                                     <td>{{ category|replace('_', ' ')|title }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(cost) }}</td>
+                                    <td class="text-end">{{ currency_symbol }}{{ "%.2f"|format(cost) }}</td>
                                     <td class="text-end">{{ "%.1f"|format((cost/total_monthly)*100 if total_monthly > 0 else 0) }}%</td>
                                 </tr>
                                 {% endfor %}
@@ -140,7 +132,7 @@
                                 {% else %}bg-info{% endif %}">
                                 {{ item.days_left }} day{{ 's' if item.days_left != 1 else '' }}
                             </span><br>
-                            <small class="text-muted">${{ "%.2f"|format(item.subscription.cost) }}</small>
+                            <small class="text-muted">{{ currency_symbol }}{{ "%.2f"|format(item.cost_in_display_currency) }}</small>
                         </div>
                     </div>
                     {% endfor %}
@@ -164,19 +156,19 @@
                 <div class="row text-center">
                     <div class="col-md-3">
                         <h6>This Month</h6>
-                        <h4 class="text-primary">${{ "%.2f"|format(total_monthly) }}</h4>
+                        <h4 class="text-primary">{{ currency_symbol }}{{ "%.2f"|format(total_monthly) }}</h4>
                     </div>
                     <div class="col-md-3">
                         <h6>Next 3 Months</h6>
-                        <h4 class="text-info">${{ "%.2f"|format(total_monthly * 3) }}</h4>
+                        <h4 class="text-info">{{ currency_symbol }}{{ "%.2f"|format(total_monthly * 3) }}</h4>
                     </div>
                     <div class="col-md-3">
                         <h6>Next 6 Months</h6>
-                        <h4 class="text-warning">${{ "%.2f"|format(total_monthly * 6) }}</h4>
+                        <h4 class="text-warning">{{ currency_symbol }}{{ "%.2f"|format(total_monthly * 6) }}</h4>
                     </div>
                     <div class="col-md-3">
                         <h6>This Year</h6>
-                        <h4 class="text-success">${{ "%.2f"|format(total_yearly) }}</h4>
+                        <h4 class="text-success">{{ currency_symbol }}{{ "%.2f"|format(total_yearly) }}</h4>
                     </div>
                 </div>
             </div>
@@ -190,13 +182,15 @@
 <script id="chart-data" type="application/json">
 {
     "categoryData": {{ category_costs|tojson|default('{}')|safe }},
-    "cycleData": {{ cycle_costs|tojson|default('{}')|safe }}
+    "cycleData": {{ cycle_costs|tojson|default('{}')|safe }},
+    "currencySymbol": "{{ currency_symbol }}"
 }
 </script>
 
 <script>
     // Get data from the JSON script tag
     const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+    const currencySymbol = chartData.currencySymbol;
     
     // Category Chart
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
@@ -253,7 +247,7 @@
             data: {
                 labels: cycleLabels,
                 datasets: [{
-                    label: 'Monthly Cost ($)',
+                    label: `Monthly Cost (${currencySymbol})`,
                     data: cycleValues,
                     backgroundColor: '#007bff',
                     borderColor: '#0056b3',
@@ -268,7 +262,7 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '$' + value.toFixed(2);
+                                return currencySymbol + value.toFixed(2);
                             }
                         }
                     }
@@ -287,12 +281,6 @@
         ctx.textAlign = 'center';
         ctx.fillStyle = '#6c757d';
         ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    }
-    
-    function switchCurrency(currency) {
-        const url = new URL(window.location);
-        url.searchParams.set('currency', currency);
-        window.location.href = url.toString();
     }
 </script>
 {% endblock %}
