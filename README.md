@@ -1,5 +1,3 @@
-UNDER DEVELOPMENT! NOT READY FOR USAGE
-
 <p align="center">
   <img src="https://github.com/GitTimeraider/Assets/blob/main/img/Subscription-Tracker/icon_sub.png" />
 </p>
@@ -290,6 +288,7 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
