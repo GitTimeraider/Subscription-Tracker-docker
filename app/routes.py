@@ -33,7 +33,7 @@ def health_check():
         current_app.logger.error(f"Health check failed: {e}")
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e),
+            'error': 'Health check failed',
             'timestamp': datetime.now().isoformat()
         }), 500
 
