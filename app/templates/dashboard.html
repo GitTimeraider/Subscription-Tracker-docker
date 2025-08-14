@@ -261,10 +261,5 @@
         window.location.href = '{{ url_for("main.dashboard") }}';
     }
     
-    function switchCurrency(currency) {
-        const url = new URL(window.location);
-        url.searchParams.set('currency', currency);
-        window.location.href = url.toString();
-    }
 </script>
 {% endblock %}
