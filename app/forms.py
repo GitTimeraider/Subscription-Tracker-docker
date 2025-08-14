@@ -36,7 +36,7 @@ class SubscriptionForm(FlaskForm):
                                  ('cloud_services', 'Cloud Services'),
                                  ('news_media', 'News & Media'),
                                  ('education', 'Education'),
-                                 ('fitness', 'Fitness & Health'),
+                                 ('insurance', 'Insurances'),
                                  ('gaming', 'Gaming'),
                                  ('other', 'Other')],
                           validators=[Optional()])
