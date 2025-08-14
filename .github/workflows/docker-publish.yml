@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: subscription-tracker
+  IMAGE_NAME: gittimeraider/subscription-tracker
 
 jobs:
   build:
