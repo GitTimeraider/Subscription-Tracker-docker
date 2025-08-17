@@ -1,6 +1,6 @@
 # 🔔 Subscription Tracker (Dockerized)
 <p align="center">
-  <img src="https://github.com/GitTimeraider/Assets/blob/main/img/Subscription-Tracker/icon_sub.png" />
+  <img src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/icon_sub.png" />
 </p>
 Welcome to the most wonderfully comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
@@ -286,6 +286,7 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
