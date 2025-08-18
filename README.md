@@ -6,10 +6,12 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 
 ## ✨ Features
 
-### 🔐 **User Management**
-- Secure user registration and login system
-- Individual user accounts with personalized settings
-- Password change functionality
+### 🔐 **Multi-User System with Admin Controls**
+- Secure multi-user environment with role-based access control
+- **Admin Users**: Can manage all users, create new accounts, and access admin settings
+- **Standard Users**: Can only manage their own subscriptions and settings
+- No public registration - only admins can create new user accounts
+- Individual user accounts with personalized settings and isolated data
 
 ### 📊 **Comprehensive Subscription Management**
 - Add, edit, and remove subscriptions with ease
@@ -50,8 +52,9 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 
 ### ⚙️ **Powerful Settings**
 - **User Settings**: Change username, email, and password
-- **Notification Settings**: Configure email preferences, timing, currency, and timezone
-- **Email Settings**: Admin-configurable SMTP settings
+- **Notification Settings**: Configure email preferences, timing, and timezone
+- **General Settings**: Set preferred currency, theme, accent color, and exchange rate provider
+- **Admin Settings**: User management, create/edit/delete users (admin only)
 - **Filters**: Filter subscriptions by category, status, and expiration
 - **Exchange Rate Provider Selection**: Choose between multiple free, no‑API‑key data sources
 
@@ -86,6 +89,8 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
       - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
       - ./data:/app/instance
 ```
@@ -110,8 +115,9 @@ services:
 
 4. **Access the application:**
    - Navigate to `http://localhost:5000`
-   - Default credentials: `admin` / `changeme`
+   - Default admin credentials: `admin` / `changeme`
    - **⚠️ Change the default password immediately!**
+   - Only admins can create new user accounts
 
 ## ⚙️ Configuration
 
@@ -202,10 +208,36 @@ MAIL_FROM=your-email@outlook.com
 
 ## 📱 Usage Guide
 
+### First Time Setup
+
+1. **Access the application** at `http://localhost:5000`
+2. **Login** with default admin credentials: `admin` / `changeme`
+3. **⚠️ Immediately change the default password** in User Settings
+4. **Create user accounts** (admin only):
+   - Go to Settings → Admin Settings → Users
+   - Click "Add User" to create new accounts
+   - Set user roles (Admin or Standard User)
+
+### User Management (Admin Only)
+
+**Admins can:**
+- View all users in the system
+- Create new user accounts (both admin and standard users)
+- Edit user details (username, email, password, role)
+- Delete users (with safety restrictions)
+- View user statistics
+
+**Safety Restrictions:**
+- Admins cannot delete themselves while logged in
+- Cannot delete the last admin user
+- Cannot remove admin role from the last admin user
+- Deleting a user removes all their subscriptions and settings
+
 ### Adding a Subscription
 
-1. **Login** to your dashboard
-2. Click **"Add Subscription"**
+1. **Login** to your account
+2. Navigate to your **Dashboard**
+3. Click **"Add Subscription"**
 3. Fill in the details:
    - **Name**: Netflix, Spotify, Adobe Creative Suite, etc.
    - **Company**: The service provider
@@ -230,8 +262,16 @@ MAIL_FROM=your-email@outlook.com
 2. Configure your preferences:
    - Enable/disable email notifications
    - Set days before expiry for alerts
-   - Choose your preferred currency
    - Set your timezone
+
+### Personal Settings
+
+1. **User Settings**: Update your username, email, and password
+2. **General Settings**: 
+   - Set your preferred display currency
+   - Choose theme mode (light/dark)
+   - Select accent color
+   - Configure exchange rate provider preference
 
 ### Viewing Analytics
 
@@ -250,13 +290,57 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 - If totals look stale, click Refresh Rates; check attempt chain for failures.
 - To test fallback, temporarily set an invalid provider order in `CURRENCY_PROVIDER_PRIORITY` and observe the chain (not recommended in production).
 
+## 👥 Multi-User System
+
+### User Roles
+
+**Admin Users:**
+- Can access all application features
+- Manage user accounts (create, edit, delete)
+- Access admin settings and user management dashboard
+- View system-wide statistics
+
+**Standard Users:**
+- Can manage their own subscriptions and settings
+- Access to dashboard, analytics, and personal settings
+- Cannot access admin functions or other users' data
+
+### Data Isolation
+
+- Each user has their own isolated subscriptions and settings
+- Users cannot view or modify other users' data
+- Analytics and reports are calculated per-user
+- Email notifications are sent per-user based on their preferences
+
+### Default Admin Account
+
+On first startup, if no admin users exist, the system creates:
+- **Username:** `admin`
+- **Password:** `changeme`
+- **⚠️ Change this password immediately after first login!**
+
+### User Management
+
+Admins can manage users through **Settings → Admin Settings → Users**:
+- View all users with their statistics
+- Create new users (admin or standard)
+- Edit user details and roles
+- Delete users (with safety restrictions)
+
 ## 🔒 Security Considerations
 
-- **🚨 Change the default admin password immediately** after first login
+- **🚨 Change the default admin password immediately** after first login (`admin` / `changeme`)
+- **👥 User Access Control**: Only admins can create new user accounts
+- **🔐 Data Isolation**: Users can only access their own subscriptions and settings
+- **🛡️ Admin Protections**: 
+  - Admins cannot delete themselves while logged in
+  - System prevents deletion of the last admin user
+  - Cannot remove admin privileges from the last admin
 - Use strong, unique passwords for all accounts
 - Set a secure `SECRET_KEY` in production
 - Use app-specific passwords for email accounts (especially Gmail)
 - Keep your environment variables secure and never commit them to version control
+- Regularly review user accounts and remove unused ones
 
 ## 🐛 Troubleshooting
 
@@ -282,6 +366,20 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 ### Performance Issues
 1. Monitor system resources if running many subscriptions
 2. Check email server response times
+
+### Multi-User Issues
+1. **Cannot access admin settings**: Ensure you're logged in as an admin user
+2. **Cannot create users**: Only admin users can create new accounts
+3. **Missing subscriptions**: Check you're logged in as the correct user - data is isolated per user
+4. **Default admin account issues**: 
+   - If default admin doesn't exist, restart the container to recreate it
+   - Check logs for user creation messages during startup
+
+### Locked Out of Admin Account
+1. Stop the container
+2. Delete the database file: `rm ./data/subscriptions.db`
+3. Restart the container (this will recreate the default admin account)
+4. **⚠️ Warning: This deletes ALL data including all users and subscriptions**
 
 ## 📄 License
 
