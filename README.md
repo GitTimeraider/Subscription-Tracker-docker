@@ -88,7 +88,6 @@ services:
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
-      - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
     volumes:
@@ -123,7 +122,7 @@ services:
 
 ### Environment Variables
 
-All of these are optional, though it is adviced to use the SECRET_KEY and the MAIL_ environmentals to the very least.
+All of these are optional, though it is advised to use the SECRET_KEY and the MAIL_ environmentals to the very least.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -384,6 +383,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
