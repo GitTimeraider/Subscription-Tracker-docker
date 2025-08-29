@@ -77,13 +77,20 @@ def create_email_body(user, subscriptions):
 def send_expiry_notification(app, user, subscriptions):
     """Send email notification for expiring subscriptions"""
     with app.app_context():
+        # Check email configuration
         if not all([app.config['MAIL_SERVER'], app.config['MAIL_USERNAME'], 
                    app.config['MAIL_PASSWORD']]):
-            print("Email configuration incomplete")
+            print("❌ Email configuration incomplete:")
+            print(f"   MAIL_SERVER: {'✓' if app.config['MAIL_SERVER'] else '✗'}")
+            print(f"   MAIL_USERNAME: {'✓' if app.config['MAIL_USERNAME'] else '✗'}")
+            print(f"   MAIL_PASSWORD: {'✓' if app.config['MAIL_PASSWORD'] else '✗'}")
             return False
 
         # Use user's email if available, otherwise use configured email
         to_email = user.email or app.config['MAIL_USERNAME']
+        
+        print(f"📧 Preparing notification for {user.username} ({to_email})")
+        print(f"   📊 {len(subscriptions)} subscription(s) expiring soon")
         
         subject = f"🔔 {len(subscriptions)} Subscription(s) Expiring Soon"
         
@@ -129,10 +136,25 @@ def send_expiry_notification(app, user, subscriptions):
         msg.attach(part2)
 
         try:
-            with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as server:
+            # Log connection attempt
+            print(f"🔌 Connecting to {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+            
+            # Use SSL for port 465, TLS for other ports
+            if app.config['MAIL_PORT'] == 465:
+                # Port 465 uses implicit SSL
+                print("🔒 Using SSL connection (port 465)")
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+            else:
+                # Other ports use explicit TLS or plain connection
+                print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
+                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
                 if app.config['MAIL_USE_TLS']:
                     server.starttls()
+            
+            with server:
+                print("🔑 Authenticating...")
                 server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+                print("📨 Sending email...")
                 server.send_message(msg)
 
                 # Update last notification date for all subscriptions
@@ -140,24 +162,39 @@ def send_expiry_notification(app, user, subscriptions):
                     subscription.last_notification = datetime.now().date()
                 db.session.commit()
                 
-                print(f"Notification sent to {user.username} for {len(subscriptions)} subscriptions")
+                print(f"✅ Notification sent to {user.username} for {len(subscriptions)} subscriptions")
                 return True
                 
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ SMTP Authentication failed for {user.username}: {e}")
+            print("🔍 Check MAIL_USERNAME and MAIL_PASSWORD")
+            return False
+        except smtplib.SMTPConnectError as e:
+            print(f"❌ SMTP Connection failed for {user.username}: {e}")
+            print("🔍 Check MAIL_SERVER and MAIL_PORT")
+            return False
+        except smtplib.SMTPException as e:
+            print(f"❌ SMTP error for {user.username}: {e}")
+            return False
         except Exception as e:
-            print(f"Failed to send email to {user.username}: {e}")
+            print(f"❌ Failed to send email to {user.username}: {e}")
             return False
 
 def check_expiring_subscriptions(app):
     """Check for expiring subscriptions and send notifications"""
     with app.app_context():
+        print(f"🔍 Checking expiring subscriptions at {datetime.now()}")
+        
         # Get all users with notification settings
         users = User.query.all()
+        total_notifications = 0
         
         for user in users:
             user_settings = user.settings or UserSettings()
             
             # Skip if user has disabled email notifications
             if not user_settings.email_notifications:
+                print(f"⏭️  Skipping {user.username} - notifications disabled")
                 continue
                 
             days_before = user_settings.notification_days
@@ -178,7 +215,16 @@ def check_expiring_subscriptions(app):
             ).all()
 
             if subscriptions:
-                send_expiry_notification(app, user, subscriptions)
+                print(f"📧 Sending notification to {user.username} for {len(subscriptions)} subscriptions")
+                success = send_expiry_notification(app, user, subscriptions)
+                if success:
+                    total_notifications += 1
+                else:
+                    print(f"❌ Failed to send notification to {user.username}")
+            else:
+                print(f"✅ No notifications needed for {user.username}")
+        
+        print(f"📊 Notification check completed. Sent {total_notifications} notifications.")
 
 def start_scheduler(app):
     """Start the background scheduler for checking expiring subscriptions"""
