@@ -7,6 +7,25 @@ from app import db
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
+def format_date_for_user(date_obj, user):
+    """Format date based on user's date format preference"""
+    if not date_obj:
+        return 'N/A'
+    
+    # Get user's date format preference
+    try:
+        if user and hasattr(user, 'settings') and user.settings:
+            date_format = user.settings.date_format or 'eu'
+        else:
+            date_format = 'eu'  # Default to European format
+    except:
+        date_format = 'eu'  # Fallback to European format
+    
+    if date_format == 'us':
+        return date_obj.strftime('%m/%d/%Y')
+    else:
+        return date_obj.strftime('%d/%m/%Y')
+
 def create_email_body(user, subscriptions):
     """Create HTML email body for subscription notifications"""
     
@@ -54,7 +73,7 @@ def create_email_body(user, subscriptions):
                 <p><strong>Category:</strong> {subscription.category or 'Not specified'}</p>
                 <p><strong>Cost:</strong> <span class="cost">${subscription.cost:.2f}</span> ({subscription.billing_cycle})</p>
                 <p><strong>Monthly Cost:</strong> <span class="cost">${subscription.get_monthly_cost():.2f}</span></p>
-                <p><strong>Expires in:</strong> {days_left} day(s) ({subscription.end_date})</p>
+                <p><strong>Expires in:</strong> {days_left} day(s) ({format_date_for_user(subscription.end_date, user)})</p>
                 {f'<p><strong>Notes:</strong> {subscription.notes}</p>' if subscription.notes else ''}
             </div>
         """
@@ -112,7 +131,7 @@ def send_expiry_notification(app, user, subscriptions):
             days_left = subscription.days_until_expiry()
             text_body += f"""
         - {subscription.name} ({subscription.company})
-          Expires in {days_left} day(s) on {subscription.end_date}
+          Expires in {days_left} day(s) on {format_date_for_user(subscription.end_date, user)}
           Cost: ${subscription.cost:.2f} ({subscription.billing_cycle})
           Monthly Cost: ${subscription.get_monthly_cost():.2f}
         
@@ -252,3 +271,156 @@ def start_scheduler(app):
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
     print("Email notification scheduler started")
+
+def send_test_email(app, user):
+    """Send a test email to verify email configuration"""
+    with app.app_context():
+        # Check email configuration
+        if not all([app.config['MAIL_SERVER'], app.config['MAIL_USERNAME'], 
+                   app.config['MAIL_PASSWORD']]):
+            return {
+                'success': False,
+                'message': 'Email configuration incomplete. Please check MAIL_SERVER, MAIL_USERNAME, and MAIL_PASSWORD.'
+            }
+
+        # Use user's email if available, otherwise use configured email
+        to_email = user.email or app.config['MAIL_USERNAME']
+        
+        print(f"📧 Sending test email to {user.username} ({to_email})")
+        
+        subject = "🧪 Test Email - Subscription Tracker"
+        
+        # Create multipart message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = app.config['MAIL_FROM'] or app.config['MAIL_USERNAME']
+        msg['To'] = to_email
+
+        # Create plain text version
+        text_body = f"""
+Hello {user.username},
+
+This is a test email from your Subscription Tracker application.
+
+If you're receiving this email, your email configuration is working correctly!
+
+Configuration details:
+- MAIL_SERVER: {app.config['MAIL_SERVER']}
+- MAIL_PORT: {app.config['MAIL_PORT']}
+- MAIL_USE_TLS: {app.config['MAIL_USE_TLS']}
+- From: {app.config['MAIL_FROM'] or app.config['MAIL_USERNAME']}
+- To: {to_email}
+
+Sent at: {format_date_for_user(datetime.now().date(), user)} {datetime.now().strftime('%H:%M:%S')}
+
+This is an automated test email from your Subscription Tracker.
+        """
+
+        # Create HTML version
+        html_body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .header {{ background-color: #28a745; color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; }}
+                .info-box {{ background-color: #f8f9fa; border-left: 4px solid #28a745; margin: 10px 0; padding: 15px; }}
+                .footer {{ background-color: #f8f9fa; padding: 15px; text-align: center; color: #666; }}
+                .success {{ color: #28a745; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🧪 Test Email Successful!</h1>
+            </div>
+            
+            <div class="content">
+                <p>Hello <strong>{user.username}</strong>,</p>
+                <p class="success">✅ Your email configuration is working correctly!</p>
+                <p>This is a test email from your Subscription Tracker application to verify that email notifications are properly configured.</p>
+                
+                <div class="info-box">
+                    <h3>📋 Configuration Details:</h3>
+                    <ul>
+                        <li><strong>Mail Server:</strong> {app.config['MAIL_SERVER']}</li>
+                        <li><strong>Port:</strong> {app.config['MAIL_PORT']}</li>
+                        <li><strong>TLS Enabled:</strong> {app.config['MAIL_USE_TLS']}</li>
+                        <li><strong>From Address:</strong> {app.config['MAIL_FROM'] or app.config['MAIL_USERNAME']}</li>
+                        <li><strong>To Address:</strong> {to_email}</li>
+                        <li><strong>Sent At:</strong> {format_date_for_user(datetime.now().date(), user)} {datetime.now().strftime('%H:%M:%S')}</li>
+                    </ul>
+                </div>
+                
+                <p>Now you can be confident that your subscription expiry notifications will be delivered successfully!</p>
+            </div>
+            
+            <div class="footer">
+                <p>This is an automated test email from your Subscription Tracker.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Add both parts to the message
+        part1 = MIMEText(text_body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        
+        msg.attach(part1)
+        msg.attach(part2)
+
+        try:
+            # Log connection attempt
+            print(f"🔌 Connecting to {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+            
+            # Use SSL for port 465, TLS for other ports
+            if app.config['MAIL_PORT'] == 465:
+                # Port 465 uses implicit SSL
+                print("🔒 Using SSL connection (port 465)")
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+            else:
+                # Other ports use explicit TLS or plain connection
+                print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
+                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+                if app.config['MAIL_USE_TLS']:
+                    server.starttls()
+            
+            with server:
+                print("🔑 Authenticating...")
+                server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+                print("📨 Sending test email...")
+                server.send_message(msg)
+                
+                print(f"✅ Test email sent successfully to {user.username}")
+                return {
+                    'success': True,
+                    'message': f'Test email sent successfully to {to_email}!'
+                }
+                
+        except smtplib.SMTPAuthenticationError as e:
+            error_msg = f"SMTP Authentication failed: {e}. Check MAIL_USERNAME and MAIL_PASSWORD."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except smtplib.SMTPConnectError as e:
+            error_msg = f"Failed to connect to mail server: {e}. Check MAIL_SERVER and MAIL_PORT."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except smtplib.SMTPRecipientsRefused as e:
+            error_msg = f"Recipient refused: {e}. Check email address."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except Exception as e:
+            error_msg = f"Unexpected error: {e}"
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }

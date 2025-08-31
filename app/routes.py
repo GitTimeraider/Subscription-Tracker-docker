@@ -106,6 +106,8 @@ def dashboard():
     # Get filter parameters
     category_filter = request.args.get('category', 'all')
     status_filter = request.args.get('status', 'all')
+    sort_by = request.args.get('sort', 'name')  # Default sort by name
+    sort_order = request.args.get('order', 'asc')  # Default ascending order
     
     query = Subscription.query.filter_by(user_id=current_user.id)
     if category_filter != 'all':
@@ -123,7 +125,67 @@ def dashboard():
             Subscription.end_date <= check_date,
             Subscription.end_date >= datetime.now().date()
         )
-    subscriptions = query.order_by(Subscription.end_date.asc()).all()
+    
+    # Apply sorting
+    if sort_by == 'name':
+        if sort_order == 'desc':
+            query = query.order_by(Subscription.name.desc())
+        else:
+            query = query.order_by(Subscription.name.asc())
+    elif sort_by == 'company':
+        if sort_order == 'desc':
+            query = query.order_by(Subscription.company.desc())
+        else:
+            query = query.order_by(Subscription.company.asc())
+    elif sort_by == 'cost':
+        if sort_order == 'desc':
+            query = query.order_by(Subscription.cost.desc())
+        else:
+            query = query.order_by(Subscription.cost.asc())
+    elif sort_by == 'start_date':
+        if sort_order == 'desc':
+            query = query.order_by(Subscription.start_date.desc())
+        else:
+            query = query.order_by(Subscription.start_date.asc())
+    elif sort_by == 'end_date':
+        if sort_order == 'desc':
+            # Handle nulls: null values should appear last for both asc and desc
+            query = query.order_by(Subscription.end_date.desc(), Subscription.name.asc())
+        else:
+            query = query.order_by(Subscription.end_date.asc(), Subscription.name.asc())
+    elif sort_by == 'category':
+        if sort_order == 'desc':
+            # Handle nulls: null categories should appear last
+            query = query.order_by(Subscription.category.desc(), Subscription.name.asc())
+        else:
+            query = query.order_by(Subscription.category.asc(), Subscription.name.asc())
+    else:
+        # Default fallback to name sorting
+        query = query.order_by(Subscription.name.asc())
+    
+    subscriptions = query.all()
+    
+    # Handle sorting by monthly cost (calculated field)
+    if sort_by == 'monthly_cost':
+        user_settings = current_user.settings or UserSettings()
+        display_currency = request.args.get('currency', user_settings.currency)
+        
+        # Apply preferred provider priority for currency conversion
+        if user_settings.preferred_rate_provider:
+            defaults = ['frankfurter','floatrates','erapi_open']
+            priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
+            os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
+        
+        try:
+            # Sort by monthly cost in display currency
+            subscriptions.sort(
+                key=lambda x: x.get_monthly_cost_in_currency(display_currency),
+                reverse=(sort_order == 'desc')
+            )
+        except Exception as e:
+            current_app.logger.warning(f"Failed to sort by monthly cost: {e}")
+            # Fall back to cost sorting if monthly cost calculation fails
+            subscriptions.sort(key=lambda x: x.cost, reverse=(sort_order == 'desc'))
 
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
@@ -166,6 +228,8 @@ def dashboard():
                          categories=categories,
                          current_category=category_filter,
                          current_status=status_filter,
+                         current_sort=sort_by,
+                         current_order=sort_order,
                          expiring_soon=expiring_soon,
                          user_currency=display_currency,
                          currency_symbol=currency_symbol,
@@ -300,6 +364,28 @@ def notification_settings():
         return redirect(url_for('main.notification_settings'))
     return render_template('notification_settings.html', form=form)
 
+@main.route('/test_email', methods=['POST'])
+@login_required
+def test_email():
+    """Send a test email to verify email configuration"""
+    from app.email import send_test_email
+    from flask import current_app
+    
+    # Check if user has email configured
+    if not current_user.email:
+        flash('Please set your email address in User Settings before testing email notifications.', 'warning')
+        return redirect(url_for('main.notification_settings'))
+    
+    # Send test email
+    result = send_test_email(current_app._get_current_object(), current_user)
+    
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
+    
+    return redirect(url_for('main.notification_settings'))
+
 @main.route('/general_settings', methods=['GET', 'POST'])
 @login_required
 def general_settings():
@@ -327,6 +413,7 @@ def general_settings():
         settings.preferred_rate_provider = form.preferred_rate_provider.data
         settings.theme_mode = form.theme_mode.data
         settings.accent_color = form.accent_color.data
+        settings.date_format = form.date_format.data
         db.session.commit()
         # If provider changed, clear today's cache and force fetch
         if settings.preferred_rate_provider and settings.preferred_rate_provider != original_provider_pref:

@@ -61,8 +61,8 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 ### 🎨 **Beautiful Interface**
 - Modern, responsive design using Bootstrap 5
 - Intuitive navigation and user experience
-- Mobile-friendly layout
-- Interactive dashboard with real-time updates
+- Mobile-friendly layout with European date formatting (DD/MM/YYYY)
+- Interactive dashboard with real-time updates and sorting capabilities
 - Status indicators for active/inactive subscriptions
 
 ### 🐳 **Docker Support**
@@ -249,11 +249,19 @@ MAIL_FROM=your-email@outlook.com
 
 ### Managing Subscriptions
 
-- **👀 View**: All subscriptions displayed on dashboard with filtering options
+- **👀 View**: All subscriptions displayed on dashboard with filtering and sorting options
 - **✏️ Edit**: Click "Edit" to modify subscription details
 - **🔄 Toggle**: Activate/deactivate subscriptions without deleting
 - **🗑️ Delete**: Remove subscriptions with confirmation
 - **🔍 Filter**: By category, status, or expiration timeline
+- **📊 Sort**: Click column headers or use dropdown to sort by:
+  - **Name** (A-Z or Z-A)
+  - **Company** (A-Z or Z-A) 
+  - **Category** (A-Z or Z-A)
+  - **Original Cost** (Low to High or High to Low)
+  - **Monthly Cost** (Low to High or High to Low)
+  - **Start Date** (Oldest to Newest or Newest to Oldest)
+  - **End Date** (Earliest to Latest or Latest to Earliest)
 
 ### Setting Up Notifications
 
@@ -262,6 +270,10 @@ MAIL_FROM=your-email@outlook.com
    - Enable/disable email notifications
    - Set days before expiry for alerts
    - Set your timezone
+3. **Test your email configuration**:
+   - Use the "Send Test Email" button to verify your email settings
+   - Ensure your email address is set in User Settings first
+   - Check both inbox and spam folder for the test email
 
 ### Personal Settings
 
@@ -344,10 +356,13 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 🐛 Troubleshooting
 
 ### Email Notifications Not Working
-1. Verify SMTP settings in environment variables
-2. Check that email credentials are correct
-3. For Gmail, ensure 2FA is enabled and use app-specific password
-4. Check application logs for error messages
+1. **Use the Test Email feature**: Go to Settings → Notification Settings and click "Send Test Email"
+2. Verify SMTP settings in environment variables
+3. Check that email credentials are correct
+4. For Gmail, ensure 2FA is enabled and use app-specific password
+5. Ensure your email address is set in User Settings
+6. Check both inbox and spam folder for test emails
+7. Check application logs for error messages
 
 ### Database Issues
 1. Stop the application

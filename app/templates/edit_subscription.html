@@ -3,7 +3,23 @@
 {% block title %}Edit Subscription - Subscription Tracker{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div cl                        <div class="col-md-6 mb-3">
+                            {{ form.start_date.label(class="form-label") }}
+                            {{ form.start_date(class="form-control") }}
+                            <small class="form-text text-muted">Dates are displayed in {{ date_format_display }} format</small>
+                            {% if form.start_date.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.start_date.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.end_date.label(class="form-label") }}
+                            {{ form.end_date(class="form-control") }}
+                            <small class="form-text text-muted">Leave blank for infinite subscription • Dates displayed in {{ date_format_display }} format</small>-content-center">
     <div class="col-md-8 col-lg-6">
         <div class="card">
             <div class="card-header">

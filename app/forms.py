@@ -107,6 +107,9 @@ class GeneralSettingsForm(FlaskForm):
     accent_color = SelectField('Accent Color',
                              choices=[('blue', 'Blue'), ('purple', 'Purple'), ('green', 'Green'), ('red', 'Red')],
                              validators=[DataRequired()])
+    date_format = SelectField('Date Format',
+                            choices=[('eu', 'European (DD/MM/YYYY)'), ('us', 'US (MM/DD/YYYY)')],
+                            validators=[DataRequired()])
     
     def __init__(self, *args, **kwargs):
         super(GeneralSettingsForm, self).__init__(*args, **kwargs)

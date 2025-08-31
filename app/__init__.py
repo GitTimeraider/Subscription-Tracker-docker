@@ -38,6 +38,125 @@ def create_app():
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
 
+    # Add custom Jinja2 filters for date formatting based on user preference
+    @app.template_filter('user_date')
+    def user_date_filter(date_obj):
+        """Format date based on user's preference (EU: DD/MM/YYYY or US: MM/DD/YYYY)"""
+        if date_obj is None:
+            return ''
+        
+        # Get user's date format preference
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and hasattr(current_user, 'settings') and current_user.settings:
+                date_format = current_user.settings.date_format or 'eu'
+            else:
+                date_format = 'eu'  # Default to European format
+        except:
+            date_format = 'eu'  # Fallback to European format
+        
+        if date_format == 'us':
+            return date_obj.strftime('%m/%d/%Y')
+        else:
+            return date_obj.strftime('%d/%m/%Y')
+    
+    @app.template_filter('user_datetime')
+    def user_datetime_filter(datetime_obj):
+        """Format datetime based on user's preference"""
+        if datetime_obj is None:
+            return ''
+        
+        # Get user's date format preference
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and hasattr(current_user, 'settings') and current_user.settings:
+                date_format = current_user.settings.date_format or 'eu'
+            else:
+                date_format = 'eu'  # Default to European format
+        except:
+            date_format = 'eu'  # Fallback to European format
+        
+        if date_format == 'us':
+            return datetime_obj.strftime('%m/%d/%Y %H:%M:%S')
+        else:
+            return datetime_obj.strftime('%d/%m/%Y %H:%M:%S')
+    
+    @app.template_filter('user_datetime_utc')
+    def user_datetime_utc_filter(datetime_obj):
+        """Format datetime with UTC based on user's preference"""
+        if datetime_obj is None:
+            return ''
+        
+        # Get user's date format preference
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and hasattr(current_user, 'settings') and current_user.settings:
+                date_format = current_user.settings.date_format or 'eu'
+            else:
+                date_format = 'eu'  # Default to European format
+        except:
+            date_format = 'eu'  # Fallback to European format
+        
+        if date_format == 'us':
+            return datetime_obj.strftime('%m/%d/%Y %H:%M:%S UTC')
+        else:
+            return datetime_obj.strftime('%d/%m/%Y %H:%M:%S UTC')
+
+    # Keep the old filters for backward compatibility
+    @app.template_filter('eu_date')
+    def eu_date_filter(date_obj):
+        """Format date as DD/MM/YYYY (European format)"""
+        if date_obj is None:
+            return ''
+        return date_obj.strftime('%d/%m/%Y')
+    
+    @app.template_filter('eu_datetime')
+    def eu_datetime_filter(datetime_obj):
+        """Format datetime as DD/MM/YYYY HH:MM:SS (European format)"""
+        if datetime_obj is None:
+            return ''
+        return datetime_obj.strftime('%d/%m/%Y %H:%M:%S')
+    
+    @app.template_filter('eu_datetime_utc')
+    def eu_datetime_utc_filter(datetime_obj):
+        """Format datetime as DD/MM/YYYY HH:MM:SS UTC (European format)"""
+        if datetime_obj is None:
+            return ''
+        return datetime_obj.strftime('%d/%m/%Y %H:%M:%S UTC')
+
+    # Add template context processor to make user date format available in templates
+    @app.context_processor
+    def inject_user_date_format():
+        """Make user's date format preference available in all templates"""
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and hasattr(current_user, 'settings') and current_user.settings:
+                date_format = current_user.settings.date_format or 'eu'
+                if date_format == 'us':
+                    return {
+                        'user_date_format': 'us',
+                        'date_format_display': 'MM/DD/YYYY',
+                        'date_placeholder': 'MM/DD/YYYY'
+                    }
+                else:
+                    return {
+                        'user_date_format': 'eu',
+                        'date_format_display': 'DD/MM/YYYY',
+                        'date_placeholder': 'DD/MM/YYYY'
+                    }
+            else:
+                return {
+                    'user_date_format': 'eu',
+                    'date_format_display': 'DD/MM/YYYY',
+                    'date_placeholder': 'DD/MM/YYYY'
+                }
+        except:
+            return {
+                'user_date_format': 'eu',
+                'date_format_display': 'DD/MM/YYYY',
+                'date_placeholder': 'DD/MM/YYYY'
+            }
+
     from app.routes import main
     app.register_blueprint(main)
 

@@ -78,6 +78,19 @@
                             </div>
                         {% endif %}
                     </div>
+
+                    <div class="mb-3">
+                        {{ form.date_format.label(class="form-label") }}
+                        {{ form.date_format(class="form-select") }}
+                        <small class="form-text text-muted">Choose how dates are displayed throughout the application.</small>
+                        {% if form.date_format.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.date_format.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
@@ -156,7 +169,7 @@
                     <div class="p-3 text-muted">No rates available.</div>
                 {% endif %}
                 <div class="p-2 border-top small text-muted">
-                    Last updated: {% if last_updated %}{{ last_updated.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}N/A{% endif %}
+                    Last updated: {% if last_updated %}{{ last_updated|user_datetime_utc }}{% else %}N/A{% endif %}
                     {% if provider and currency_converter and currency_converter.last_attempt_chain %}
                         <br>Attempts: 
                         {% for p, status in currency_converter.last_attempt_chain %}

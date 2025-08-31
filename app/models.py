@@ -39,6 +39,9 @@ class UserSettings(db.Model):
     theme_mode = db.Column(db.String(10), default='light')  # 'light' or 'dark'
     accent_color = db.Column(db.String(10), default='purple')  # 'blue', 'purple', etc.
     
+    # Date format preference
+    date_format = db.Column(db.String(10), default='eu')  # 'eu' (DD/MM/YYYY) or 'us' (MM/DD/YYYY)
+    
     # Relationship
     user = db.relationship('User', backref=db.backref('settings', uselist=False, cascade='all, delete-orphan'))
 

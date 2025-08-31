@@ -44,11 +44,39 @@
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                         </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Settings
-                        </button>
+                        <div>
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
                     </div>
                 </form>
+                
+                <!-- Test Email Section -->
+                <hr class="my-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-paper-plane me-2"></i>Test Email Configuration
+                        </h6>
+                        <small class="text-muted">Send a test email to verify your email settings are working correctly</small>
+                    </div>
+                    <form method="POST" action="{{ url_for('main.test_email') }}" class="d-inline">
+                        {{ form.hidden_tag() }}
+                        <button type="submit" class="btn btn-outline-success btn-sm" 
+                                {% if not current_user.email %}disabled title="Please set your email address in User Settings first"{% endif %}>
+                            <i class="fas fa-paper-plane me-1"></i>Send Test Email
+                        </button>
+                    </form>
+                </div>
+                {% if not current_user.email %}
+                <div class="alert alert-warning mt-2 mb-0" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Email address required:</strong> Please set your email address in 
+                    <a href="{{ url_for('main.user_settings') }}" class="alert-link">User Settings</a> 
+                    before testing email notifications.
+                </div>
+                {% endif %}
             </div>
         </div>
         
@@ -62,9 +90,35 @@
                     <li><i class="fas fa-check text-success me-2"></i>Daily notifications are sent at 9:00 AM</li>
                     <li><i class="fas fa-check text-success me-2"></i>Only active subscriptions trigger notifications</li>
                     <li><i class="fas fa-check text-success me-2"></i>You won't receive duplicate notifications on the same day</li>
+                    <li><i class="fas fa-paper-plane text-info me-2"></i>Use the "Send Test Email" button above to verify your email configuration</li>
                 </ul>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle test email form submission
+    const testEmailForm = document.querySelector('form[action="{{ url_for("main.test_email") }}"]');
+    const testEmailButton = testEmailForm.querySelector('button[type="submit"]');
+    
+    if (testEmailForm && testEmailButton) {
+        testEmailForm.addEventListener('submit', function(e) {
+            // Show loading state
+            const originalText = testEmailButton.innerHTML;
+            testEmailButton.disabled = true;
+            testEmailButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+            
+            // Re-enable button after form submission (in case of page reload failure)
+            setTimeout(function() {
+                testEmailButton.disabled = false;
+                testEmailButton.innerHTML = originalText;
+            }, 5000);
+        });
+    }
+});
+</script>
 {% endblock %}
