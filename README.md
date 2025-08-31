@@ -53,6 +53,8 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 ### ⚙️ **Powerful Settings**
 - **User Settings**: Change username, email, and password
 - **Notification Settings**: Configure email preferences, timing, and timezone
+- **General Settings**: Preferred currency, theme, accent color, and date format (EU/US)
+- **Date Format Options**: Choose between European (DD/MM/YYYY) or US (MM/DD/YYYY) formatting
 - **General Settings**: Set preferred currency, theme, accent color, and exchange rate provider
 - **Admin Settings**: User management, create/edit/delete users (admin only)
 - **Filters**: Filter subscriptions by category, status, and expiration

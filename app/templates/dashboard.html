@@ -6,10 +6,7 @@
 {% if rate_provider %}
 <div class="alert alert-info py-2 mb-3">
     <i class="fas fa-globe me-1"></i>
-    Provider in use: <strong>{{ r                        <td>{{ sub.start_date|eu_date }}</td>
-                        <td>
-                            {% if sub.end_date %}
-                                {{ sub.end_date|eu_date }}</td>provider }}</strong>
+    Provider in use: <strong>{{ rate_provider }}</strong>
     {% if requested_provider and requested_provider != rate_provider %}
         <span class="ms-2 text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Requested {{ requested_provider }} but using {{ rate_provider }} (fallback / cache).</span>
     {% endif %}
