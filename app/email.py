@@ -15,7 +15,7 @@ def format_date_for_user(date_obj, user):
     # Get user's date format preference
     try:
         if user and hasattr(user, 'settings') and user.settings:
-            date_format = user.settings.date_format or 'eu'
+            date_format = getattr(user.settings, 'date_format', 'eu') or 'eu'
         else:
             date_format = 'eu'  # Default to European format
     except:
