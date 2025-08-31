@@ -4,7 +4,7 @@ Flask-Login==0.6.3
 Flask-WTF==1.2.2
 WTForms==3.2.1
 python-dotenv==1.1.1
-email-validator==2.2.0
+email-validator==2.3.0
 APScheduler==3.11.0
 gunicorn==23.0.0
 Werkzeug==3.1.3
