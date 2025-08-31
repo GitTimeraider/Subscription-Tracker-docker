@@ -163,27 +163,6 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-        # Handle database migration for date_format column
-        try:
-            # Check if date_format column exists, if not add it
-            from sqlalchemy import text
-            result = db.session.execute(text("PRAGMA table_info(user_settings)"))
-            columns = [row[1] for row in result.fetchall()]
-            
-            if 'date_format' not in columns:
-                print("Adding date_format column to user_settings table...")
-                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN date_format VARCHAR(10) DEFAULT 'eu'"))
-                db.session.commit()
-                print("✅ Added date_format column successfully")
-            
-            # Update existing records that might have NULL values
-            db.session.execute(text("UPDATE user_settings SET date_format = 'eu' WHERE date_format IS NULL"))
-            db.session.commit()
-            
-        except Exception as e:
-            print(f"⚠️ Database migration note: {e}")
-            db.session.rollback()
-
         # Create default admin user if no admin users exist
         from app.models import User, UserSettings
         admin_exists = User.query.filter_by(is_admin=True).first()

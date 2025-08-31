@@ -106,8 +106,8 @@ def dashboard():
     # Get filter parameters
     category_filter = request.args.get('category', 'all')
     status_filter = request.args.get('status', 'all')
-    sort_by = request.args.get('sort', 'name')  # Default sort by name
-    sort_order = request.args.get('order', 'asc')  # Default ascending order
+    sort_by = request.args.get('sort', 'end_date')  # Default sort by end_date (nearest expiry first)
+    sort_order = request.args.get('order', 'asc')  # Default ascending order (nearest first)
     
     query = Subscription.query.filter_by(user_id=current_user.id)
     if category_filter != 'all':
@@ -149,10 +149,11 @@ def dashboard():
             query = query.order_by(Subscription.start_date.asc())
     elif sort_by == 'end_date':
         if sort_order == 'desc':
-            # Handle nulls: null values should appear last for both asc and desc
-            query = query.order_by(Subscription.end_date.desc(), Subscription.name.asc())
+            # For descending: furthest dates first, then infinite (NULL) last
+            query = query.order_by(Subscription.end_date.desc().nulls_last(), Subscription.name.asc())
         else:
-            query = query.order_by(Subscription.end_date.asc(), Subscription.name.asc())
+            # For ascending: nearest dates first, then infinite (NULL) last
+            query = query.order_by(Subscription.end_date.asc().nulls_last(), Subscription.name.asc())
     elif sort_by == 'category':
         if sort_order == 'desc':
             # Handle nulls: null categories should appear last
@@ -186,6 +187,20 @@ def dashboard():
             current_app.logger.warning(f"Failed to sort by monthly cost: {e}")
             # Fall back to cost sorting if monthly cost calculation fails
             subscriptions.sort(key=lambda x: x.cost, reverse=(sort_order == 'desc'))
+    
+    # Handle post-processing sorting for end_date to ensure infinite subscriptions are always last
+    if sort_by == 'end_date':
+        def end_date_sort_key(subscription):
+            if subscription.end_date is None:
+                # For infinite subscriptions, use a far future date for sorting
+                from datetime import date
+                return date(9999, 12, 31)
+            return subscription.end_date
+        
+        subscriptions.sort(
+            key=end_date_sort_key,
+            reverse=(sort_order == 'desc')
+        )
 
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)

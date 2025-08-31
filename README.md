@@ -53,18 +53,18 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 ### ⚙️ **Powerful Settings**
 - **User Settings**: Change username, email, and password
 - **Notification Settings**: Configure email preferences, timing, and timezone
-- **General Settings**: Preferred currency, theme, accent color, and date format (EU/US)
+- **General Settings**: Preferred currency, theme, accent color, date format, and exchange rate provider
 - **Date Format Options**: Choose between European (DD/MM/YYYY) or US (MM/DD/YYYY) formatting
-- **General Settings**: Set preferred currency, theme, accent color, and exchange rate provider
 - **Admin Settings**: User management, create/edit/delete users (admin only)
+- **Smart Sorting**: Dashboard defaults to nearest expiry first, with infinite subscriptions always last
 - **Filters**: Filter subscriptions by category, status, and expiration
 - **Exchange Rate Provider Selection**: Choose between multiple free, no‑API‑key data sources
 
 ### 🎨 **Beautiful Interface**
 - Modern, responsive design using Bootstrap 5
 - Intuitive navigation and user experience
-- Mobile-friendly layout with European date formatting (DD/MM/YYYY)
-- Interactive dashboard with real-time updates and sorting capabilities
+- Mobile-friendly layout with configurable date formatting (DD/MM/YYYY or MM/DD/YYYY)
+- Interactive dashboard with real-time updates and sorting capabilities (defaults to nearest expiry first)
 - Status indicators for active/inactive subscriptions
 
 ### 🐳 **Docker Support**
