@@ -40,6 +40,21 @@
                         {% endif %}
                     </div>
                     
+                    <div class="mb-3">
+                        {{ form.notification_time.label(class="form-label") }}
+                        {{ form.notification_time(class="form-control") }}
+                        <small class="form-text text-muted">
+                            Time of day to send daily notification emails (24-hour format)
+                        </small>
+                        {% if form.notification_time.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.notification_time.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
@@ -86,8 +101,8 @@
                     <i class="fas fa-info-circle me-2"></i>Notification Information
                 </h6>
                 <ul class="list-unstyled mb-0">
-                    <li><i class="fas fa-check text-success me-2"></i>Notifications are checked every 6 hours</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Daily notifications are sent at 9:00 AM</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Notifications are checked every hour</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Daily notifications are sent at your preferred time</li>
                     <li><i class="fas fa-check text-success me-2"></i>Only active subscriptions trigger notifications</li>
                     <li><i class="fas fa-check text-success me-2"></i>You won't receive duplicate notifications on the same day</li>
                     <li><i class="fas fa-paper-plane text-info me-2"></i>Use the "Send Test Email" button above to verify your email configuration</li>

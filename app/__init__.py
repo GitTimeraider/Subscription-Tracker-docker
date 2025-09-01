@@ -163,6 +163,38 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+        # Automatic database migration for existing installations
+        try:
+            inspector = db.inspect(db.engine)
+            
+            # Check UserSettings table for missing columns
+            user_settings_columns = [col['name'] for col in inspector.get_columns('user_settings')]
+            migrations_applied = []
+            
+            if 'last_notification_sent' not in user_settings_columns:
+                print("🔄 Auto-migrating: Adding last_notification_sent column to user_settings...")
+                db.engine.execute('ALTER TABLE user_settings ADD COLUMN last_notification_sent DATE')
+                migrations_applied.append("last_notification_sent")
+            
+            if 'notification_time' not in user_settings_columns:
+                print("🔄 Auto-migrating: Adding notification_time column to user_settings...")
+                db.engine.execute('ALTER TABLE user_settings ADD COLUMN notification_time INTEGER DEFAULT 9')
+                migrations_applied.append("notification_time")
+            
+            # Check Subscription table for missing columns
+            subscription_columns = [col['name'] for col in inspector.get_columns('subscription')]
+            
+            if 'custom_notification_days' not in subscription_columns:
+                print("🔄 Auto-migrating: Adding custom_notification_days column to subscription...")
+                db.engine.execute('ALTER TABLE subscription ADD COLUMN custom_notification_days INTEGER')
+                migrations_applied.append("custom_notification_days")
+            
+            if migrations_applied:
+                print(f"✅ Database migration completed! Added: {', '.join(migrations_applied)}")
+            
+        except Exception as e:
+            print(f"⚠️  Database migration skipped: {e}")
+
         # Create default admin user if no admin users exist
         from app.models import User, UserSettings
         admin_exists = User.query.filter_by(is_admin=True).first()

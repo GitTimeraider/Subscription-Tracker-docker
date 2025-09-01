@@ -176,9 +176,12 @@ def send_expiry_notification(app, user, subscriptions):
                 print("📨 Sending email...")
                 server.send_message(msg)
 
-                # Update last notification date for all subscriptions
-                for subscription in subscriptions:
-                    subscription.last_notification = datetime.now().date()
+                # Update last notification date for the user (not individual subscriptions)
+                user_settings = user.settings or UserSettings()
+                user_settings.last_notification_sent = datetime.now().date()
+                if not user.settings:
+                    user_settings.user_id = user.id
+                    db.session.add(user_settings)
                 db.session.commit()
                 
                 print(f"✅ Notification sent to {user.username} for {len(subscriptions)} subscriptions")
@@ -202,7 +205,9 @@ def send_expiry_notification(app, user, subscriptions):
 def check_expiring_subscriptions(app):
     """Check for expiring subscriptions and send notifications"""
     with app.app_context():
-        print(f"🔍 Checking expiring subscriptions at {datetime.now()}")
+        current_time = datetime.now()
+        current_hour = current_time.hour
+        print(f"🔍 Checking expiring subscriptions at {current_time} (hour: {current_hour})")
         
         # Get all users with notification settings
         users = User.query.all()
@@ -215,33 +220,43 @@ def check_expiring_subscriptions(app):
             if not user_settings.email_notifications:
                 print(f"⏭️  Skipping {user.username} - notifications disabled")
                 continue
+            
+            # Check if we already sent a notification today for this user
+            today = current_time.date()
+            if user_settings.last_notification_sent == today:
+                print(f"⏭️  Skipping {user.username} - already notified today")
+                continue
+            
+            # Check if it's the user's preferred notification time (±1 hour window)
+            preferred_hour = user_settings.notification_time or 9
+            if not (preferred_hour - 1 <= current_hour <= preferred_hour + 1):
+                print(f"⏭️  Skipping {user.username} - not their notification time (prefers {preferred_hour}:00, current: {current_hour}:00)")
+                continue
+
+            # Find subscriptions expiring based on their individual or default notification days
+            expiring_subscriptions = []
+            
+            for subscription in user.subscriptions:
+                if not subscription.is_active or not subscription.end_date:
+                    continue
                 
-            days_before = user_settings.notification_days
-            check_date = datetime.now().date() + timedelta(days=days_before)
+                # Get notification days for this specific subscription
+                notification_days = subscription.get_notification_days(user_settings)
+                check_date = today + timedelta(days=notification_days)
+                
+                # Check if this subscription is expiring within its notification window
+                if subscription.end_date <= check_date and subscription.end_date >= today:
+                    expiring_subscriptions.append(subscription)
 
-            # Find subscriptions that are:
-            # 1. Expiring within the notification window
-            # 2. Haven't been notified today
-            # 3. Are still active
-            subscriptions = Subscription.query.filter(
-                Subscription.user_id == user.id,
-                Subscription.is_active == True,
-                Subscription.end_date.isnot(None),
-                Subscription.end_date <= check_date,
-                Subscription.end_date >= datetime.now().date(),
-                (Subscription.last_notification == None) | 
-                (Subscription.last_notification < datetime.now().date())
-            ).all()
-
-            if subscriptions:
-                print(f"📧 Sending notification to {user.username} for {len(subscriptions)} subscriptions")
-                success = send_expiry_notification(app, user, subscriptions)
+            if expiring_subscriptions:
+                print(f"📧 Sending notification to {user.username} for {len(expiring_subscriptions)} subscriptions at preferred time {preferred_hour}:00")
+                success = send_expiry_notification(app, user, expiring_subscriptions)
                 if success:
                     total_notifications += 1
                 else:
                     print(f"❌ Failed to send notification to {user.username}")
             else:
-                print(f"✅ No notifications needed for {user.username}")
+                print(f"✅ No expiring subscriptions for {user.username}")
         
         print(f"📊 Notification check completed. Sent {total_notifications} notifications.")
 
@@ -249,28 +264,18 @@ def start_scheduler(app):
     """Start the background scheduler for checking expiring subscriptions"""
     scheduler = BackgroundScheduler()
     
-    # Check every 6 hours instead of daily for more timely notifications
+    # Check every hour to respect user-specific notification times
     scheduler.add_job(
         func=lambda: check_expiring_subscriptions(app),
         trigger="interval",
-        hours=6,
+        hours=1,
         id='check_subscriptions',
-        replace_existing=True
-    )
-    
-    # Also add a daily job at 9 AM for primary notifications
-    scheduler.add_job(
-        func=lambda: check_expiring_subscriptions(app),
-        trigger="cron",
-        hour=9,
-        minute=0,
-        id='daily_check_subscriptions',
         replace_existing=True
     )
     
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
-    print("Email notification scheduler started")
+    print("Email notification scheduler started (checking hourly)")
 
 def send_test_email(app, user):
     """Send a test email to verify email configuration"""

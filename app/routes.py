@@ -270,6 +270,7 @@ def add_subscription():
                 payment_method_id=payment_method_id,
                 start_date=form.start_date.data,
                 end_date=form.end_date.data,
+                custom_notification_days=form.custom_notification_days.data,
                 notes=form.notes.data,
                 user_id=current_user.id
             )
@@ -306,6 +307,7 @@ def edit_subscription(id):
             subscription.payment_method_id = payment_method_id
             subscription.start_date = form.start_date.data
             subscription.end_date = form.end_date.data
+            subscription.custom_notification_days = form.custom_notification_days.data
             subscription.notes = form.notes.data
             db.session.commit()
             flash('Subscription updated successfully!', 'success')
@@ -374,6 +376,7 @@ def notification_settings():
             settings = current_user.settings
         settings.email_notifications = form.email_notifications.data
         settings.notification_days = form.notification_days.data
+        settings.notification_time = form.notification_time.data
         db.session.commit()
         flash('Notification settings updated successfully!', 'success')
         return redirect(url_for('main.notification_settings'))

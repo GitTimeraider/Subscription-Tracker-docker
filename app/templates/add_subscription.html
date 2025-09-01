@@ -158,6 +158,19 @@
                     </div>
                     
                     <div class="mb-3">
+                        {{ form.custom_notification_days.label(class="form-label") }}
+                        {{ form.custom_notification_days(class="form-control") }}
+                        <small class="form-text text-muted">Override default notification days for this subscription only</small>
+                        {% if form.custom_notification_days.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.custom_notification_days.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control", rows="3") }}
                         {% if form.notes.errors %}

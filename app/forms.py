@@ -47,6 +47,9 @@ class SubscriptionForm(FlaskForm):
     payment_method_id = SelectField('Payment Method', coerce=int, validators=[Optional()])
     start_date = DateField('Start Date', validators=[DataRequired()])
     end_date = DateField('End Date (Leave blank for infinite)', validators=[Optional()])
+    custom_notification_days = IntegerField('Custom notification days (override default)', 
+                                          validators=[Optional(), NumberRange(min=1, max=365)],
+                                          render_kw={'placeholder': 'Leave blank to use default'})
     notes = TextAreaField('Notes', validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
@@ -85,6 +88,10 @@ class NotificationSettingsForm(FlaskForm):
     email_notifications = BooleanField('Enable Email Notifications')
     notification_days = IntegerField('Days before expiry to send notification', 
                                    validators=[DataRequired(), NumberRange(min=1, max=365)])
+    notification_time = SelectField('Daily notification time', 
+                                  choices=[(i, f'{i:02d}:00') for i in range(24)],
+                                  coerce=int,
+                                  validators=[DataRequired()])
 
 class GeneralSettingsForm(FlaskForm):
     currency = SelectField('Preferred Display Currency', validators=[DataRequired()])

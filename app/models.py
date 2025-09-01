@@ -28,6 +28,8 @@ class UserSettings(db.Model):
     # Notification settings
     email_notifications = db.Column(db.Boolean, default=True)
     notification_days = db.Column(db.Integer, default=7)
+    notification_time = db.Column(db.Integer, default=9)  # Hour of day (0-23) when to send notifications
+    last_notification_sent = db.Column(db.Date)  # Track when last daily summary was sent
     
     # General settings
     currency = db.Column(db.String(3), default='EUR')
@@ -128,6 +130,7 @@ class Subscription(db.Model):
     last_notification = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
+    custom_notification_days = db.Column(db.Integer)  # Override default notification days for this subscription
     
     # Relationships
     payment_method = db.relationship('PaymentMethod', backref='subscriptions')
@@ -219,6 +222,10 @@ class Subscription(db.Model):
         from datetime import datetime
         delta = self.end_date - datetime.now().date()
         return delta.days if delta.days >= 0 else 0
+
+    def get_notification_days(self, user_settings):
+        """Get effective notification days for this subscription (custom or user default)"""
+        return self.custom_notification_days if self.custom_notification_days is not None else user_settings.notification_days
 
     def get_monthly_cost_in_currency(self, target_currency):
         """Get monthly cost converted to target currency using currency converter with timeout protection"""
