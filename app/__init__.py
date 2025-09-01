@@ -165,6 +165,7 @@ def create_app():
 
         # Automatic database migration for existing installations
         try:
+            from sqlalchemy import text
             inspector = db.inspect(db.engine)
             
             # Check UserSettings table for missing columns
@@ -173,12 +174,16 @@ def create_app():
             
             if 'last_notification_sent' not in user_settings_columns:
                 print("🔄 Auto-migrating: Adding last_notification_sent column to user_settings...")
-                db.engine.execute('ALTER TABLE user_settings ADD COLUMN last_notification_sent DATE')
+                with db.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE user_settings ADD COLUMN last_notification_sent DATE'))
+                    conn.commit()
                 migrations_applied.append("last_notification_sent")
             
             if 'notification_time' not in user_settings_columns:
                 print("🔄 Auto-migrating: Adding notification_time column to user_settings...")
-                db.engine.execute('ALTER TABLE user_settings ADD COLUMN notification_time INTEGER DEFAULT 9')
+                with db.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE user_settings ADD COLUMN notification_time INTEGER DEFAULT 9'))
+                    conn.commit()
                 migrations_applied.append("notification_time")
             
             # Check Subscription table for missing columns
@@ -186,7 +191,9 @@ def create_app():
             
             if 'custom_notification_days' not in subscription_columns:
                 print("🔄 Auto-migrating: Adding custom_notification_days column to subscription...")
-                db.engine.execute('ALTER TABLE subscription ADD COLUMN custom_notification_days INTEGER')
+                with db.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE subscription ADD COLUMN custom_notification_days INTEGER'))
+                    conn.commit()
                 migrations_applied.append("custom_notification_days")
             
             if migrations_applied:
