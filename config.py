@@ -8,11 +8,11 @@ class Config:
     
     # Database connection pool settings for SQLite
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_timeout': 20,
+        'pool_timeout': 10,  # Reduced from 20 to 10 seconds
         'pool_recycle': 3600,
         'pool_pre_ping': True,
         'connect_args': {
-            'timeout': 30,
+            'timeout': 20,  # Reduced from 30 to 20 seconds
             'check_same_thread': False
         } if 'sqlite' in (os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db') else {}
     }

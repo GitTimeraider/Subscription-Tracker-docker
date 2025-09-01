@@ -122,7 +122,7 @@ class CurrencyConverter:
 
     def _fetch_frankfurter(self):
         url = 'https://api.frankfurter.app/latest?from=EUR'
-        r = requests.get(url, timeout=5)  # Reduced timeout from 10 to 5 seconds
+        r = requests.get(url, timeout=3)  # Further reduced timeout from 5 to 3 seconds
         r.raise_for_status()
         data = r.json()
         rates = data.get('rates') or {}
@@ -135,7 +135,7 @@ class CurrencyConverter:
         return out
 
     def _fetch_floatrates(self):
-        r = requests.get(FLOATRATES_URL, timeout=5)  # Reduced timeout from 10 to 5 seconds
+        r = requests.get(FLOATRATES_URL, timeout=3)  # Further reduced timeout from 5 to 3 seconds
         r.raise_for_status()
         data = r.json()  # keys are lowercase currency codes
         out = {'EUR': Decimal('1')}
@@ -151,7 +151,7 @@ class CurrencyConverter:
         return out
 
     def _fetch_erapi_open(self):
-        r = requests.get(ERAPI_URL, timeout=5)  # Reduced timeout from 10 to 5 seconds
+        r = requests.get(ERAPI_URL, timeout=3)  # Further reduced timeout from 5 to 3 seconds
         r.raise_for_status()
         data = r.json()
         if data.get('result') != 'success':

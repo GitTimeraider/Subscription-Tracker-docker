@@ -6,6 +6,8 @@ from app.models import Subscription, User, UserSettings
 from app import db
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+import threading
+import time
 
 def get_currency_symbol(currency_code):
     """Get currency symbol for display"""
@@ -188,15 +190,17 @@ def send_expiry_notification(app, user, subscriptions):
             # Log connection attempt
             print(f"🔌 Connecting to {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
             
-            # Use SSL for port 465, TLS for other ports
+            # Use SSL for port 465, TLS for other ports with timeout
+            smtp_timeout = 10  # 10 second timeout for SMTP operations
+            
             if app.config['MAIL_PORT'] == 465:
                 # Port 465 uses implicit SSL
                 print("🔒 Using SSL connection (port 465)")
-                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
             else:
                 # Other ports use explicit TLS or plain connection
                 print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
-                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
                 if app.config['MAIL_USE_TLS']:
                     server.starttls()
             
@@ -217,12 +221,44 @@ def send_expiry_notification(app, user, subscriptions):
             print(f"❌ SMTP Connection failed for {user.username}: {e}")
             print("🔍 Check MAIL_SERVER and MAIL_PORT")
             return False
+        except smtplib.SMTPServerDisconnected as e:
+            print(f"❌ SMTP Server disconnected for {user.username}: {e}")
+            print("🔍 Mail server may be overloaded or timing out")
+            return False
         except smtplib.SMTPException as e:
             print(f"❌ SMTP error for {user.username}: {e}")
+            return False
+        except ConnectionError as e:
+            print(f"❌ Network connection error for {user.username}: {e}")
+            print("🔍 Check network connectivity to mail server")
+            return False
+        except TimeoutError as e:
+            print(f"❌ Timeout error for {user.username}: {e}")
+            print("🔍 Mail server is taking too long to respond")
             return False
         except Exception as e:
             print(f"❌ Failed to send email to {user.username}: {e}")
             return False
+
+def check_expiring_subscriptions_with_timeout(app):
+    """Wrapper function to check expiring subscriptions with timeout protection"""
+    def run_check():
+        try:
+            check_expiring_subscriptions(app)
+        except Exception as e:
+            print(f"❌ Error in notification check: {e}")
+    
+    # Run the check in a separate thread with timeout
+    thread = threading.Thread(target=run_check)
+    thread.daemon = True
+    thread.start()
+    
+    # Wait for completion with timeout
+    thread.join(timeout=60)  # 60 second timeout for entire email check process
+    
+    if thread.is_alive():
+        print("⚠️ Email notification check timed out after 60 seconds")
+        # Thread will continue in background but won't block the scheduler
 
 def check_expiring_subscriptions(app):
     """Check for expiring subscriptions and send notifications"""
@@ -310,11 +346,12 @@ def start_scheduler(app):
     
     # Check every hour to respect user-specific notification times
     scheduler.add_job(
-        func=lambda: check_expiring_subscriptions(app),
+        func=lambda: check_expiring_subscriptions_with_timeout(app),
         trigger="interval",
         hours=1,
         id='check_subscriptions',
-        replace_existing=True
+        replace_existing=True,
+        max_instances=1  # Prevent overlapping runs
     )
     
     scheduler.start()
@@ -422,15 +459,17 @@ This is an automated test email from your Subscription Tracker.
             # Log connection attempt
             print(f"🔌 Connecting to {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
             
-            # Use SSL for port 465, TLS for other ports
+            # Use SSL for port 465, TLS for other ports with timeout
+            smtp_timeout = 10  # 10 second timeout for SMTP operations
+            
             if app.config['MAIL_PORT'] == 465:
                 # Port 465 uses implicit SSL
                 print("🔒 Using SSL connection (port 465)")
-                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
             else:
                 # Other ports use explicit TLS or plain connection
                 print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
-                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+                server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
                 if app.config['MAIL_USE_TLS']:
                     server.starttls()
             
@@ -460,8 +499,29 @@ This is an automated test email from your Subscription Tracker.
                 'success': False,
                 'message': error_msg
             }
+        except smtplib.SMTPServerDisconnected as e:
+            error_msg = f"Mail server disconnected: {e}. Server may be overloaded."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
         except smtplib.SMTPRecipientsRefused as e:
             error_msg = f"Recipient refused: {e}. Check email address."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except ConnectionError as e:
+            error_msg = f"Network connection error: {e}. Check network connectivity."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except TimeoutError as e:
+            error_msg = f"Connection timeout: {e}. Mail server is taking too long to respond."
             print(f"❌ {error_msg}")
             return {
                 'success': False,

@@ -16,5 +16,9 @@ services:
       - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+      # Timeout optimization settings
+      - CURRENCY_REFRESH_MINUTES=${CURRENCY_REFRESH_MINUTES:-1440}
+      - CURRENCY_PROVIDER_PRIORITY=${CURRENCY_PROVIDER_PRIORITY:-frankfurter,floatrates,erapi_open}
+      - PERFORMANCE_LOGGING=${PERFORMANCE_LOGGING:-true}
     volumes:
       - ./data:/app/instance
