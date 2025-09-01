@@ -7,6 +7,20 @@ from app import db
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
+def get_currency_symbol(currency_code):
+    """Get currency symbol for display"""
+    currency_symbols = {
+        'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'CHF': 'CHF ',
+        'CAD': 'C$', 'AUD': 'A$', 'NZD': 'NZ$', 'SEK': 'kr', 'NOK': 'kr',
+        'DKK': 'kr', 'PLN': 'zł', 'CZK': 'Kč', 'HUF': 'Ft', 'RON': 'lei',
+        'BGN': 'лв', 'HRK': 'kn', 'RSD': 'RSD', 'TRY': '₺', 'RUB': '₽',
+        'CNY': '¥', 'INR': '₹', 'KRW': '₩', 'SGD': 'S$', 'HKD': 'HK$',
+        'MYR': 'RM', 'THB': '฿', 'PHP': '₱', 'IDR': 'Rp', 'VND': '₫',
+        'BRL': 'R$', 'ARS': '$', 'CLP': '$', 'COP': '$', 'PEN': 'S/',
+        'MXN': '$', 'ZAR': 'R', 'EGP': 'E£', 'MAD': 'MAD', 'NGN': '₦'
+    }
+    return currency_symbols.get(currency_code, currency_code + ' ')
+
 def format_date_for_user(date_obj, user):
     """Format date based on user's date format preference"""
     if not date_obj:
@@ -28,6 +42,11 @@ def format_date_for_user(date_obj, user):
 
 def create_email_body(user, subscriptions):
     """Create HTML email body for subscription notifications"""
+    
+    # Get user's preferred currency
+    user_settings = user.settings or UserSettings()
+    user_currency = user_settings.currency or 'EUR'
+    currency_symbol = get_currency_symbol(user_currency)
     
     html_body = f"""
     <html>
@@ -66,13 +85,17 @@ def create_email_body(user, subscriptions):
             css_class = "subscription"
             urgency = "ℹ️ NOTICE"
         
+        # Get costs in user's preferred currency
+        raw_cost = subscription.get_raw_cost_in_currency(user_currency)
+        monthly_cost = subscription.get_monthly_cost_in_currency(user_currency)
+        
         html_body += f"""
             <div class="{css_class}">
                 <h3>{urgency} - {subscription.name}</h3>
                 <p><strong>Company:</strong> {subscription.company}</p>
                 <p><strong>Category:</strong> {subscription.category or 'Not specified'}</p>
-                <p><strong>Cost:</strong> <span class="cost">${subscription.cost:.2f}</span> ({subscription.billing_cycle})</p>
-                <p><strong>Monthly Cost:</strong> <span class="cost">${subscription.get_monthly_cost():.2f}</span></p>
+                <p><strong>Cost:</strong> <span class="cost">{currency_symbol}{raw_cost:.2f}</span> ({subscription.billing_cycle})</p>
+                <p><strong>Monthly Cost:</strong> <span class="cost">{currency_symbol}{monthly_cost:.2f}</span></p>
                 <p><strong>Expires in:</strong> {days_left} day(s) ({format_date_for_user(subscription.end_date, user)})</p>
                 {f'<p><strong>Notes:</strong> {subscription.notes}</p>' if subscription.notes else ''}
             </div>
@@ -120,6 +143,10 @@ def send_expiry_notification(app, user, subscriptions):
         msg['To'] = to_email
 
         # Create plain text version
+        user_settings = user.settings or UserSettings()
+        user_currency = user_settings.currency or 'EUR'
+        currency_symbol = get_currency_symbol(user_currency)
+        
         text_body = f"""
         Hello {user.username},
 
@@ -129,11 +156,14 @@ def send_expiry_notification(app, user, subscriptions):
         
         for subscription in subscriptions:
             days_left = subscription.days_until_expiry()
+            raw_cost = subscription.get_raw_cost_in_currency(user_currency)
+            monthly_cost = subscription.get_monthly_cost_in_currency(user_currency)
+            
             text_body += f"""
         - {subscription.name} ({subscription.company})
           Expires in {days_left} day(s) on {format_date_for_user(subscription.end_date, user)}
-          Cost: ${subscription.cost:.2f} ({subscription.billing_cycle})
-          Monthly Cost: ${subscription.get_monthly_cost():.2f}
+          Cost: {currency_symbol}{raw_cost:.2f} ({subscription.billing_cycle})
+          Monthly Cost: {currency_symbol}{monthly_cost:.2f}
         
         """
         
@@ -176,14 +206,6 @@ def send_expiry_notification(app, user, subscriptions):
                 print("📨 Sending email...")
                 server.send_message(msg)
 
-                # Update last notification date for the user (not individual subscriptions)
-                user_settings = user.settings or UserSettings()
-                user_settings.last_notification_sent = datetime.now().date()
-                if not user.settings:
-                    user_settings.user_id = user.id
-                    db.session.add(user_settings)
-                db.session.commit()
-                
                 print(f"✅ Notification sent to {user.username} for {len(subscriptions)} subscriptions")
                 return True
                 
@@ -221,10 +243,15 @@ def check_expiring_subscriptions(app):
                 print(f"⏭️  Skipping {user.username} - notifications disabled")
                 continue
             
-            # Check if we already sent a notification today for this user
+            # Double-check if we already sent a notification today for this user (database level check)
             today = current_time.date()
+            # Refresh user_settings from database to get latest value
+            if user.settings:
+                db.session.refresh(user.settings)
+                user_settings = user.settings
+            
             if user_settings.last_notification_sent == today:
-                print(f"⏭️  Skipping {user.username} - already notified today")
+                print(f"⏭️  Skipping {user.username} - already notified today (last sent: {user_settings.last_notification_sent})")
                 continue
             
             # Check if it's the user's preferred notification time (±1 hour window)
@@ -250,11 +277,23 @@ def check_expiring_subscriptions(app):
 
             if expiring_subscriptions:
                 print(f"📧 Sending notification to {user.username} for {len(expiring_subscriptions)} subscriptions at preferred time {preferred_hour}:00")
+                
+                # Set the notification sent flag BEFORE sending email to prevent race conditions
+                if not user.settings:
+                    user_settings = UserSettings(user_id=user.id)
+                    db.session.add(user_settings)
+                user_settings.last_notification_sent = today
+                db.session.commit()
+                
                 success = send_expiry_notification(app, user, expiring_subscriptions)
                 if success:
                     total_notifications += 1
+                    print(f"✅ Notification successfully sent and marked as sent for {user.username}")
                 else:
-                    print(f"❌ Failed to send notification to {user.username}")
+                    # If email failed, remove the notification flag so it can be retried later
+                    user_settings.last_notification_sent = None
+                    db.session.commit()
+                    print(f"❌ Failed to send notification to {user.username}, will retry later")
             else:
                 print(f"✅ No expiring subscriptions for {user.username}")
         
@@ -262,6 +301,11 @@ def check_expiring_subscriptions(app):
 
 def start_scheduler(app):
     """Start the background scheduler for checking expiring subscriptions"""
+    # Check if scheduler is already running to prevent duplicates
+    if hasattr(app, '_notification_scheduler') and app._notification_scheduler:
+        print("⚠️  Notification scheduler already running, skipping initialization")
+        return
+    
     scheduler = BackgroundScheduler()
     
     # Check every hour to respect user-specific notification times
@@ -274,8 +318,9 @@ def start_scheduler(app):
     )
     
     scheduler.start()
+    app._notification_scheduler = scheduler
     atexit.register(lambda: scheduler.shutdown())
-    print("Email notification scheduler started (checking hourly)")
+    print("✅ Email notification scheduler started (checking hourly)")
 
 def send_test_email(app, user):
     """Send a test email to verify email configuration"""
