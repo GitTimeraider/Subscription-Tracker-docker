@@ -163,59 +163,6 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-        # Automatic database migration for existing installations
-        try:
-            from sqlalchemy import text
-            inspector = db.inspect(db.engine)
-            
-            # Get all table names to check if tables exist
-            table_names = inspector.get_table_names()
-            print(f"📊 Found tables: {table_names}")
-            
-            # Check UserSettings table for missing columns
-            if 'user_settings' in table_names:
-                user_settings_columns = [col['name'] for col in inspector.get_columns('user_settings')]
-                print(f"🔍 UserSettings columns: {user_settings_columns}")
-                migrations_applied = []
-                
-                if 'last_notification_sent' not in user_settings_columns:
-                    print("🔄 Auto-migrating: Adding last_notification_sent column to user_settings...")
-                    with db.engine.connect() as conn:
-                        conn.execute(text('ALTER TABLE user_settings ADD COLUMN last_notification_sent DATE'))
-                        conn.commit()
-                    migrations_applied.append("last_notification_sent")
-                
-                if 'notification_time' not in user_settings_columns:
-                    print("🔄 Auto-migrating: Adding notification_time column to user_settings...")
-                    with db.engine.connect() as conn:
-                        conn.execute(text('ALTER TABLE user_settings ADD COLUMN notification_time INTEGER DEFAULT 9'))
-                        conn.commit()
-                    migrations_applied.append("notification_time")
-                
-                # Check Subscription table for missing columns
-                if 'subscription' in table_names:
-                    subscription_columns = [col['name'] for col in inspector.get_columns('subscription')]
-                    print(f"🔍 Subscription columns: {subscription_columns}")
-                    
-                    if 'custom_notification_days' not in subscription_columns:
-                        print("🔄 Auto-migrating: Adding custom_notification_days column to subscription...")
-                        with db.engine.connect() as conn:
-                            conn.execute(text('ALTER TABLE subscription ADD COLUMN custom_notification_days INTEGER'))
-                            conn.commit()
-                        migrations_applied.append("custom_notification_days")
-                
-                if migrations_applied:
-                    print(f"✅ Database migration completed! Added: {', '.join(migrations_applied)}")
-                else:
-                    print("✅ Database is up to date, no migrations needed")
-            else:
-                print("⚠️  user_settings table not found, skipping migration")
-            
-        except Exception as e:
-            print(f"⚠️  Database migration failed: {e}")
-            import traceback
-            traceback.print_exc()
-
         # Create default admin user if no admin users exist
         from app.models import User, UserSettings
         admin_exists = User.query.filter_by(is_admin=True).first()
