@@ -3,23 +3,7 @@
 {% block title %}Edit Subscription - Subscription Tracker{% endblock %}
 
 {% block content %}
-<div cl                        <div class="col-md-6 mb-3">
-                            {{ form.start_date.label(class="form-label") }}
-                            {{ form.start_date(class="form-control") }}
-                            <small class="form-text text-muted">Dates are displayed in {{ date_format_display }} format</small>
-                            {% if form.start_date.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.start_date.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            {{ form.end_date.label(class="form-label") }}
-                            {{ form.end_date(class="form-control") }}
-                            <small class="form-text text-muted">Leave blank for infinite subscription • Dates displayed in {{ date_format_display }} format</small>-content-center">
+<div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
         <div class="card">
             <div class="card-header">
@@ -79,7 +63,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             {{ form.cost.label(class="form-label") }}
-                            {{ form.cost(class="form-control") }}
+                            {{ form.cost(class="form-control", step="0.01") }}
                             {% if form.cost.errors %}
                                 <div class="text-danger mt-1">
                                     {% for error in form.cost.errors %}
@@ -149,6 +133,7 @@
                         <div class="col-md-6 mb-3">
                             {{ form.start_date.label(class="form-label") }}
                             {{ form.start_date(class="form-control") }}
+                            <small class="form-text text-muted">Dates are displayed in {{ date_format_display }} format</small>
                             {% if form.start_date.errors %}
                                 <div class="text-danger mt-1">
                                     {% for error in form.start_date.errors %}
@@ -161,7 +146,7 @@
                         <div class="col-md-6 mb-3">
                             {{ form.end_date.label(class="form-label") }}
                             {{ form.end_date(class="form-control") }}
-                            <small class="form-text text-muted">Leave blank for infinite subscription</small>
+                            <small class="form-text text-muted">Leave blank for infinite subscription • Dates displayed in {{ date_format_display }} format</small>
                             {% if form.end_date.errors %}
                                 <div class="text-danger mt-1">
                                     {% for error in form.end_date.errors %}
@@ -214,14 +199,23 @@
 
 {% block extra_js %}
 <script>
-    document.getElementById('billing_cycle').addEventListener('change', function() {
-        const customPeriodFields = document.getElementById('custom_period_fields');
-        
-        if (this.value === 'custom') {
+document.addEventListener('DOMContentLoaded', function() {
+    const billingCycleField = document.getElementById('billing_cycle');
+    const customPeriodFields = document.getElementById('custom_period_fields');
+    
+    function toggleCustomFields() {
+        if (billingCycleField.value === 'custom') {
             customPeriodFields.style.display = 'block';
         } else {
             customPeriodFields.style.display = 'none';
         }
-    });
+    }
+    
+    // Initialize on page load
+    toggleCustomFields();
+    
+    // Toggle when selection changes
+    billingCycleField.addEventListener('change', toggleCustomFields);
+});
 </script>
 {% endblock %}
