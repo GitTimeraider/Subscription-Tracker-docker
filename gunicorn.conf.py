@@ -5,14 +5,14 @@ bind = "0.0.0.0:5000"
 backlog = 2048
 
 # Worker processes
-workers = 2
+workers = 3  # Increased from 2 to 3 for better load distribution
 worker_class = "sync"
 worker_connections = 1000
-timeout = 60  # Increased from default 30s to 60s
+timeout = 120  # Increased from 60s to 120s for longer operations
 keepalive = 2
 
 # Restart workers after this many requests, to help prevent memory leaks
-max_requests = 1000
+max_requests = 500  # Reduced from 1000 to prevent memory buildup
 max_requests_jitter = 50
 
 # Logging
@@ -36,8 +36,12 @@ keyfile = None
 certfile = None
 
 # Worker timeout
-graceful_timeout = 30
+graceful_timeout = 60  # Increased from 30s to 60s
 worker_tmp_dir = "/dev/shm"
+
+# Additional timeout settings for better stability
+worker_timeout = 120  # Same as timeout
+worker_max_requests_jitter = 50
 
 # Environment
 raw_env = [
