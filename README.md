@@ -71,7 +71,7 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - **Filters**: Filter subscriptions by category, status, and expiration
 - **Exchange Rate Provider Selection**: Choose between multiple free, no‑API‑key data sources
 
-- <p align="center" width="100%">
+<p align="center" width="100%">
     <img width="80%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/settings.jpg">
 </p>
 
@@ -421,6 +421,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
