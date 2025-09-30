@@ -25,8 +25,9 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - Detailed subscription information including notes
 
 <p align="center" width="100%">
-    <img width="100%" src="https://github.com/GitTimeraider/Assets/blob/main/Directadmin-Emailforwarder-docker/img/directadmin3.jpg">
+    <img width="100%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/create.jpg">
 </p>
+
 
 ### 💰 **Flexible Billing Cycles**
 - **Daily** - Perfect for daily service charges
@@ -70,12 +71,22 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - **Filters**: Filter subscriptions by category, status, and expiration
 - **Exchange Rate Provider Selection**: Choose between multiple free, no‑API‑key data sources
 
+- <p align="center" width="100%">
+    <img width="100%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/settings.jpg">
+</p>
+
+
 ### 🎨 **Beautiful Interface**
 - Modern, responsive design using Bootstrap 5
 - Intuitive navigation and user experience
 - Mobile-friendly layout with configurable date formatting (DD/MM/YYYY or MM/DD/YYYY)
 - Interactive dashboard with real-time updates and sorting capabilities (defaults to nearest expiry first)
 - Status indicators for active/inactive subscriptions
+
+<p align="center" width="100%">
+    <img width="100%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/analytics.jpg">
+</p>
+
 
 ### 🐳 **Docker Support**
 - Easy deployment with Docker
@@ -410,6 +421,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
