@@ -5,6 +5,11 @@
 
 Welcome to the most wonderfully comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
+<p align="center" width="100%">
+    <img width="100%" src="[https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/dashboard2.jpg]>
+</p>
+
+
 ## ✨ Features
 
 ### 🔐 **Multi-User System with Admin Controls**
@@ -18,6 +23,10 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - Add, edit, and remove subscriptions with ease
 - Support for multiple categories: Software, Hardware, Entertainment, Utilities, Cloud Services, News & Media, Education, Fitness, Gaming, and more
 - Detailed subscription information including notes
+
+<p align="center" width="100%">
+    <img width="100%" src="https://github.com/GitTimeraider/Assets/blob/main/Directadmin-Emailforwarder-docker/img/directadmin3.jpg">
+</p>
 
 ### 💰 **Flexible Billing Cycles**
 - **Daily** - Perfect for daily service charges
@@ -401,6 +410,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
