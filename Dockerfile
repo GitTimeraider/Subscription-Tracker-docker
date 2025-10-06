@@ -50,9 +50,10 @@ COPY --chown=appuser:appgroup . .
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Create writable directories for read-only filesystem compatibility
-RUN mkdir -p /tmp/app-runtime /var/tmp/app \
-	&& chown -R appuser:appgroup /tmp/app-runtime /var/tmp/app \
-	&& chmod 755 /tmp/app-runtime /var/tmp/app
+RUN mkdir -p /tmp/app-runtime /var/tmp/app /app/instance \
+	&& chown -R appuser:appgroup /tmp/app-runtime /var/tmp/app /app/instance \
+	&& chmod 755 /tmp/app-runtime /var/tmp/app \
+	&& chmod 775 /app/instance
 
 ENV FLASK_APP=run.py \
 	USER=appuser \

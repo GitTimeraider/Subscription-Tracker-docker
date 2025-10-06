@@ -73,6 +73,19 @@ ensure_writable_dirs() {
             chown "$owner:$group" /app/instance 2>/dev/null || true
         fi
     fi
+    
+    # Ensure proper permissions on instance directory
+    chmod 755 /app/instance 2>/dev/null || true
+    
+    # If SQLite database exists, ensure it has proper permissions
+    if [ -f "/app/instance/subscriptions.db" ]; then
+        chmod 664 /app/instance/subscriptions.db 2>/dev/null || true
+        if [ "$(id -u)" = "0" ]; then
+            local owner="${PUID:-$APP_USER}"
+            local group="${GUID:-$APP_GROUP}"
+            chown "$owner:$group" /app/instance/subscriptions.db 2>/dev/null || true
+        fi
+    fi
 }
 
 # Set up temporary directories for application runtime
@@ -100,6 +113,38 @@ should_drop_privileges() {
     [ "$(id -u)" = "0" ]
 }
 
+# Initialize database with proper permissions
+init_database() {
+    # Only run database initialization if we're starting the main application
+    if [[ "$1" == *"python"* ]] || [[ "$1" == *"gunicorn"* ]] || [[ "$1" == *"run.py"* ]]; then
+        echo "Initializing database..."
+        
+        # Create database directory if it doesn't exist
+        mkdir -p /app/instance
+        
+        # Set proper permissions for database operations
+        if [ "$(id -u)" = "0" ]; then
+            local owner="${PUID:-$APP_USER}"
+            local group="${GUID:-$APP_GROUP}"
+            chown "$owner:$group" /app/instance
+            chmod 755 /app/instance
+            
+            # If database file exists, fix its permissions
+            if [ -f "/app/instance/subscriptions.db" ]; then
+                chown "$owner:$group" /app/instance/subscriptions.db
+                chmod 664 /app/instance/subscriptions.db
+            fi
+        else
+            # Running as non-root, ensure we can write to the directory
+            if [ ! -w "/app/instance" ]; then
+                echo "WARNING: /app/instance is not writable by current user $(id -u):$(id -g)"
+                echo "Please ensure the mounted volume has proper permissions:"
+                echo "  sudo chown -R $(id -u):$(id -g) ./data"
+            fi
+        fi
+    fi
+}
+
 # Main execution
 main() {
     echo "Starting Subscription Tracker..."
@@ -111,6 +156,9 @@ main() {
     # Set up required directories and environment
     ensure_writable_dirs
     setup_temp_dirs
+    
+    # Initialize database with proper permissions
+    init_database "$@"
     
     # Drop privileges if running as root, otherwise run directly
     if should_drop_privileges; then
