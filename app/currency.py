@@ -12,6 +12,17 @@ getcontext().prec = 28
 FLOATRATES_URL = "https://www.floatrates.com/daily/eur.json"
 ERAPI_URL = "https://open.er-api.com/v6/latest/EUR"
 
+
+def ensure_timezone_aware(dt, default_tz=timezone.utc):
+    """
+    Ensure a datetime object is timezone-aware.
+    If naive, assume it's in the default timezone (UTC by default).
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=default_tz)
+    return dt
+
+
 class CurrencyConverter:
     """Currency converter with multi-provider fallback and provider-specific caching."""
 
@@ -60,7 +71,9 @@ class CurrencyConverter:
         if not force_refresh and primary_provider:
             record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
-                age_min = (datetime.now(timezone.utc) - record.created_at).total_seconds() / 60.0
+                # Handle timezone compatibility - assume database datetime is UTC if naive
+                record_time = ensure_timezone_aware(record.created_at)
+                age_min = (datetime.now(timezone.utc) - record_time).total_seconds() / 60.0
                 if age_min <= refresh_minutes:
                     try:
                         self.last_provider = primary_provider
@@ -79,7 +92,9 @@ class CurrencyConverter:
                 if not force_refresh:
                     cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=provider).first()
                     if cached:
-                        age_min = (datetime.now(timezone.utc) - cached.created_at).total_seconds() / 60.0
+                        # Handle timezone compatibility - assume database datetime is UTC if naive
+                        cached_time = ensure_timezone_aware(cached.created_at)
+                        age_min = (datetime.now(timezone.utc) - cached_time).total_seconds() / 60.0
                         if age_min <= refresh_minutes:
                             try:
                                 self.last_provider = provider
