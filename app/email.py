@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -8,6 +9,22 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import threading
 import time
+
+def create_secure_ssl_context():
+    """Create a secure SSL context with proper certificate verification and TLS settings"""
+    context = ssl.create_default_context()
+    
+    # Ensure we use TLS 1.2 or higher
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    
+    # Ensure certificate verification is enabled (default, but being explicit)
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    
+    # Disable weak ciphers and protocols
+    context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
+    
+    return context
 
 def get_currency_symbol(currency_code):
     """Get currency symbol for display"""
@@ -192,17 +209,21 @@ def send_expiry_notification(app, user, subscriptions):
             
             # Use SSL for port 465, TLS for other ports with timeout
             smtp_timeout = 10  # 10 second timeout for SMTP operations
+            ssl_context = create_secure_ssl_context()
             
             if app.config['MAIL_PORT'] == 465:
-                # Port 465 uses implicit SSL
-                print("🔒 Using SSL connection (port 465)")
-                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
+                # Port 465 uses implicit SSL with secure context
+                print("🔒 Using SSL connection with TLS 1.2+ (port 465)")
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], 
+                                        timeout=smtp_timeout, context=ssl_context)
             else:
-                # Other ports use explicit TLS or plain connection
-                print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
+                # Other ports require explicit TLS - no plain connections allowed
+                if not app.config['MAIL_USE_TLS']:
+                    raise ValueError("Plain text SMTP connections are not allowed for security reasons. Please enable MAIL_USE_TLS.")
+                
+                print("🔐 Using STARTTLS with TLS 1.2+ and certificate verification")
                 server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
-                if app.config['MAIL_USE_TLS']:
-                    server.starttls()
+                server.starttls(context=ssl_context)
             
             with server:
                 print("🔑 Authenticating...")
@@ -235,6 +256,9 @@ def send_expiry_notification(app, user, subscriptions):
         except TimeoutError as e:
             print(f"❌ Timeout error for {user.username}: {e}")
             print("🔍 Mail server is taking too long to respond")
+            return False
+        except ValueError as e:
+            print(f"❌ Configuration error for {user.username}: {e}")
             return False
         except Exception as e:
             print(f"❌ Failed to send email to {user.username}: {e}")
@@ -461,17 +485,21 @@ This is an automated test email from your Subscription Tracker.
             
             # Use SSL for port 465, TLS for other ports with timeout
             smtp_timeout = 10  # 10 second timeout for SMTP operations
+            ssl_context = create_secure_ssl_context()
             
             if app.config['MAIL_PORT'] == 465:
-                # Port 465 uses implicit SSL
-                print("🔒 Using SSL connection (port 465)")
-                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
+                # Port 465 uses implicit SSL with secure context
+                print("🔒 Using SSL connection with TLS 1.2+ (port 465)")
+                server = smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], 
+                                        timeout=smtp_timeout, context=ssl_context)
             else:
-                # Other ports use explicit TLS or plain connection
-                print(f"🔐 Using {'TLS' if app.config['MAIL_USE_TLS'] else 'plain'} connection")
+                # Other ports require explicit TLS - no plain connections allowed
+                if not app.config['MAIL_USE_TLS']:
+                    raise ValueError("Plain text SMTP connections are not allowed for security reasons. Please enable MAIL_USE_TLS.")
+                
+                print("🔐 Using STARTTLS with TLS 1.2+ and certificate verification")
                 server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'], timeout=smtp_timeout)
-                if app.config['MAIL_USE_TLS']:
-                    server.starttls()
+                server.starttls(context=ssl_context)
             
             with server:
                 print("🔑 Authenticating...")
@@ -522,6 +550,13 @@ This is an automated test email from your Subscription Tracker.
             }
         except TimeoutError as e:
             error_msg = f"Connection timeout: {e}. Mail server is taking too long to respond."
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        except ValueError as e:
+            error_msg = f"Configuration error: {e}"
             print(f"❌ {error_msg}")
             return {
                 'success': False,
