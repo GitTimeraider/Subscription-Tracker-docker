@@ -217,6 +217,20 @@ services:
 
 When switching from SQLite to PostgreSQL/MariaDB, you'll start with a fresh database. The application will automatically create the necessary tables on first startup. If you need to migrate existing data, you'll need to export/import your data manually.
 
+### Building from Source
+
+If you're building the Docker image from source, the multi-stage build process will automatically handle database driver compilation:
+
+```bash
+# Build the image
+docker build -t subscription-tracker .
+
+# Run with your preferred database
+docker-compose up -d
+```
+
+The build process includes support for both PostgreSQL and MariaDB/MySQL drivers.
+
 ## ⚙️ Configuration
 
 ### Environment Variables
