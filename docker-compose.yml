@@ -6,6 +6,10 @@ services:
     ports:
       - "5000:5000"
     environment:
+      # Custom User/Group IDs (optional)
+      - PUID=${PUID:-1000}
+      - GUID=${GUID:-1000}
+      # Application configuration
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///subscriptions.db}
       - MAIL_SERVER=${MAIL_SERVER}
@@ -15,14 +19,12 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
       - DAYS_BEFORE_EXPIRY=${DAYS_BEFORE_EXPIRY}
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
       # Timeout optimization settings
       - CURRENCY_REFRESH_MINUTES=${CURRENCY_REFRESH_MINUTES:-1440}
       - CURRENCY_PROVIDER_PRIORITY=${CURRENCY_PROVIDER_PRIORITY:-frankfurter,floatrates,erapi_open}
       - PERFORMANCE_LOGGING=${PERFORMANCE_LOGGING:-true}
     volumes:
-      - YOURDATAVOLUME:/app/instance
+      - ./data:/app/instance
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s

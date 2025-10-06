@@ -1,35 +1,126 @@
 #!/usr/bin/env bash
 set -e
 
-# Environment variables: PUID, PGID
+# Security-hardened entrypoint with PUID/GUID support
+# Supports both build-time users and runtime PUID/GUID configuration
+
+# PUID/GUID support (legacy compatibility)
 PUID=${PUID:-1000}
-PGID=${PGID:-1000}
-APP_USER=appuser
-APP_GROUP=appgroup
+GUID=${GUID:-1000}
 
-# Create group if it does not exist or adjust gid
-if getent group ${APP_GROUP} >/dev/null 2>&1; then
-    EXISTING_GID=$(getent group ${APP_GROUP} | cut -d: -f3)
-    if [ "$EXISTING_GID" != "$PGID" ]; then
-        groupmod -o -g "$PGID" "$APP_GROUP" || true
+# Build-time user/group names (for security hardening)
+APP_USER=${USER:-appuser}
+APP_GROUP=${GROUP:-appgroup}
+
+# Function to check if running with read-only filesystem
+is_readonly_fs() {
+    # Try to create a test file in /tmp to check if filesystem is writable
+    touch /tmp/.write-test 2>/dev/null && rm -f /tmp/.write-test 2>/dev/null
+    return $?
+}
+
+# Function to handle PUID/GUID configuration
+setup_user_mapping() {
+    # If we're running as root and PUID/GUID are specified, handle user mapping
+    if [ "$(id -u)" = "0" ] && [ -n "$PUID" ] && [ -n "$GUID" ]; then
+        
+        # Check if we can modify /etc/passwd (not read-only filesystem)
+        if ! is_readonly_fs && [ -w /etc/passwd ]; then
+            echo "Setting up PUID/GUID mapping: $PUID:$GUID"
+            
+            # Create or modify user/group to match PUID/GUID
+            if ! getent group "$GUID" >/dev/null 2>&1; then
+                groupadd -g "$GUID" "$APP_GROUP" 2>/dev/null || true
+            fi
+            
+            if ! getent passwd "$PUID" >/dev/null 2>&1; then
+                useradd -u "$PUID" -g "$GUID" -d /app -s /bin/bash "$APP_USER" 2>/dev/null || true
+            else
+                # User exists, modify it
+                usermod -u "$PUID" -g "$GUID" "$APP_USER" 2>/dev/null || true
+            fi
+            
+            # Set APP_USER and APP_GROUP to the PUID/GUID values for gosu
+            APP_USER="$PUID"
+            APP_GROUP="$GUID"
+        else
+            echo "WARNING: Cannot modify users in read-only filesystem. Using build-time user."
+            echo "To use custom PUID/GUID, either:"
+            echo "  1. Use --user $PUID:$GUID with Docker"
+            echo "  2. Mount writable /etc/passwd and /etc/group"
+        fi
     fi
-else
-    groupadd -o -g "$PGID" "$APP_GROUP"
-fi
+}
 
-# Create user if it does not exist or adjust uid
-if id -u ${APP_USER} >/dev/null 2>&1; then
-    EXISTING_UID=$(id -u ${APP_USER})
-    if [ "$EXISTING_UID" != "$PUID" ]; then
-        usermod -o -u "$PUID" ${APP_USER} 2>/dev/null || true
+# Ensure writable directories exist for application data
+# These should be mounted as volumes in production
+ensure_writable_dirs() {
+    # Only attempt directory creation if we can write
+    if is_readonly_fs; then
+        # For read-only filesystem, only check that required dirs exist
+        if [ ! -d "/app/instance" ]; then
+            echo "ERROR: /app/instance directory does not exist. Please mount it as a volume."
+            exit 1
+        fi
+    else
+        # For writable filesystem, create directories if needed
+        mkdir -p /app/instance
+        # Only attempt chown if we're running as root
+        if [ "$(id -u)" = "0" ]; then
+            # Use PUID:GUID if available, otherwise use build-time user
+            local owner="${PUID:-$APP_USER}"
+            local group="${GUID:-$APP_GROUP}"
+            chown "$owner:$group" /app/instance 2>/dev/null || true
+        fi
     fi
-else
-    useradd -o -m -u "$PUID" -g "$PGID" -s /bin/bash ${APP_USER} 2>/dev/null || true
-fi
+}
 
-# Ensure instance and other writable dirs exist & permissions
-mkdir -p /app/instance
-chown -R ${APP_USER}:${APP_GROUP} /app/instance
+# Set up temporary directories for application runtime
+setup_temp_dirs() {
+    # Use /tmp for temporary files (usually writable even with read-only root)
+    export TMPDIR="/tmp/app-runtime"
+    export TEMP="/tmp/app-runtime"
+    export TMP="/tmp/app-runtime"
+    
+    # Create temp directories if they don't exist and filesystem is writable
+    if ! is_readonly_fs; then
+        mkdir -p "$TMPDIR" 2>/dev/null || true
+        if [ "$(id -u)" = "0" ]; then
+            # Use PUID:GUID if available, otherwise use build-time user
+            local owner="${PUID:-$APP_USER}"
+            local group="${GUID:-$APP_GROUP}"
+            chown "$owner:$group" "$TMPDIR" 2>/dev/null || true
+        fi
+    fi
+}
 
-# Drop privileges and execute
-exec gosu ${APP_USER}:${APP_GROUP} "$@"
+# Check if we need to drop privileges
+should_drop_privileges() {
+    # Only drop privileges if we're running as root
+    [ "$(id -u)" = "0" ]
+}
+
+# Main execution
+main() {
+    echo "Starting Subscription Tracker..."
+    echo "Running as user: $(id -u):$(id -g)"
+    
+    # Handle PUID/GUID mapping first
+    setup_user_mapping
+    
+    # Set up required directories and environment
+    ensure_writable_dirs
+    setup_temp_dirs
+    
+    # Drop privileges if running as root, otherwise run directly
+    if should_drop_privileges; then
+        echo "Dropping privileges to ${APP_USER}:${APP_GROUP}"
+        exec gosu ${APP_USER}:${APP_GROUP} "$@"
+    else
+        echo "Running with current user privileges"
+        exec "$@"
+    fi
+}
+
+# Run main function
+main "$@"
