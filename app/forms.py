@@ -86,6 +86,7 @@ class UserSettingsForm(FlaskForm):
 
 class NotificationSettingsForm(FlaskForm):
     email_notifications = BooleanField('Enable Email Notifications')
+    webhook_notifications = BooleanField('Enable Webhook Notifications')
     notification_days = IntegerField('Days before expiry to send notification', 
                                    validators=[DataRequired(), NumberRange(min=1, max=365)])
     notification_time = SelectField('Daily notification time', 
@@ -148,3 +149,32 @@ class AdminEditUserForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     new_password = PasswordField('New Password (leave blank to keep current)', validators=[Optional(), Length(min=6)])
     is_admin = BooleanField('Admin User')
+
+class WebhookForm(FlaskForm):
+    name = StringField('Webhook Name', validators=[DataRequired(), Length(min=1, max=100)])
+    webhook_type = SelectField('Webhook Type', 
+                              choices=[('gotify', 'Gotify'),
+                                     ('teams', 'Microsoft Teams'),
+                                     ('discord', 'Discord'),
+                                     ('slack', 'Slack'),
+                                     ('generic', 'Generic JSON')],
+                              validators=[DataRequired()])
+    url = StringField('Webhook URL', validators=[DataRequired(), Length(min=1, max=500)])
+    auth_header = StringField('API Key/Token (optional)', validators=[Optional(), Length(max=200)])
+    auth_username = StringField('Username (for Basic Auth)', validators=[Optional(), Length(max=100)])
+    auth_password = PasswordField('Password (for Basic Auth)', validators=[Optional(), Length(max=200)])
+    custom_headers = TextAreaField('Custom Headers (JSON format)', validators=[Optional()],
+                                  render_kw={'placeholder': '{"X-Custom-Header": "value", "Another-Header": "value2"}'})
+    is_active = BooleanField('Active', default=True)
+    
+    def validate_custom_headers(self, field):
+        if field.data:
+            try:
+                import json
+                json.loads(field.data)
+            except ValueError:
+                raise ValidationError('Custom headers must be valid JSON format')
+    
+    def validate_url(self, field):
+        if not (field.data.startswith('http://') or field.data.startswith('https://')):
+            raise ValidationError('URL must start with http:// or https://')

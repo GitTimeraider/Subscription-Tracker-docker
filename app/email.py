@@ -298,9 +298,9 @@ def check_expiring_subscriptions(app):
         for user in users:
             user_settings = user.settings or UserSettings()
             
-            # Skip if user has disabled email notifications
-            if not user_settings.email_notifications:
-                print(f"⏭️  Skipping {user.username} - notifications disabled")
+            # Skip if user has disabled ALL notifications
+            if not user_settings.email_notifications and not user_settings.webhook_notifications:
+                print(f"⏭️  Skipping {user.username} - all notifications disabled")
                 continue
             
             # Double-check if we already sent a notification today for this user (database level check)
@@ -336,24 +336,57 @@ def check_expiring_subscriptions(app):
                     expiring_subscriptions.append(subscription)
 
             if expiring_subscriptions:
-                print(f"📧 Sending notification to {user.username} for {len(expiring_subscriptions)} subscriptions at preferred time {preferred_hour}:00")
+                # Determine which notification methods are enabled
+                methods = []
+                if user_settings.email_notifications:
+                    methods.append("email")
+                if user_settings.webhook_notifications:
+                    methods.append("webhook")
                 
-                # Set the notification sent flag BEFORE sending email to prevent race conditions
+                print(f"� Sending {'/'.join(methods)} notification(s) to {user.username} for {len(expiring_subscriptions)} subscriptions at preferred time {preferred_hour}:00")
+                
+                # Set the notification sent flag BEFORE sending notifications to prevent race conditions
                 if not user.settings:
                     user_settings = UserSettings(user_id=user.id)
                     db.session.add(user_settings)
                 user_settings.last_notification_sent = today
                 db.session.commit()
                 
-                success = send_expiry_notification(app, user, expiring_subscriptions)
-                if success:
+                # Send email notification if enabled
+                email_success = True
+                if user_settings.email_notifications:
+                    email_success = send_expiry_notification(app, user, expiring_subscriptions)
+                    if email_success:
+                        print(f"✅ Email notification sent to {user.username}")
+                    else:
+                        print(f"❌ Failed to send email notification to {user.username}")
+                
+                # Send webhook notifications if enabled
+                webhook_success = True
+                if user_settings.webhook_notifications:
+                    try:
+                        from app.webhooks import send_all_webhook_notifications
+                        webhook_count = send_all_webhook_notifications(app, user, expiring_subscriptions)
+                        if webhook_count > 0:
+                            print(f"✅ {webhook_count} webhook notification(s) sent to {user.username}")
+                        else:
+                            print(f"⚠️ No active webhooks configured for {user.username}")
+                    except ImportError as e:
+                        print(f"❌ Webhook module not available: {e}")
+                        webhook_success = False
+                    except Exception as e:
+                        print(f"❌ Failed to send webhook notifications to {user.username}: {e}")
+                        webhook_success = False
+                
+                # Consider the notification successful if at least one method worked
+                if email_success or webhook_success:
                     total_notifications += 1
                     print(f"✅ Notification successfully sent and marked as sent for {user.username}")
                 else:
-                    # If email failed, remove the notification flag so it can be retried later
+                    # If both email and webhook failed, remove the notification flag so it can be retried later
                     user_settings.last_notification_sent = None
                     db.session.commit()
-                    print(f"❌ Failed to send notification to {user.username}, will retry later")
+                    print(f"❌ All notification methods failed for {user.username}, will retry later")
             else:
                 print(f"✅ No expiring subscriptions for {user.username}")
         

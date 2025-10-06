@@ -6,23 +6,84 @@
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h2 class="mb-0">
                     <i class="fas fa-bell me-2"></i>Notification Settings
                 </h2>
+                <!-- Current Status Indicator -->
+                <div class="d-flex align-items-center">
+                    {% if current_user.settings %}
+                        {% if current_user.settings.email_notifications and current_user.settings.webhook_notifications %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-double me-1"></i>Email + Webhooks
+                            </span>
+                        {% elif current_user.settings.email_notifications %}
+                            <span class="badge bg-primary">
+                                <i class="fas fa-envelope me-1"></i>Email Only
+                            </span>
+                        {% elif current_user.settings.webhook_notifications %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-satellite-dish me-1"></i>Webhooks Only
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-bell-slash me-1"></i>Disabled
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-bell-slash me-1"></i>Disabled
+                        </span>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body">
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     
-                    <div class="mb-3">
-                        <div class="form-check">
-                            {{ form.email_notifications(class="form-check-input") }}
-                            {{ form.email_notifications.label(class="form-check-label") }}
+                    <!-- Notification Methods -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-bell me-2"></i>Notification Methods
+                            </h6>
                         </div>
-                        <small class="form-text text-muted">
-                            Enable email notifications for expiring subscriptions
-                        </small>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Choose how you want to receive subscription expiry notifications:</p>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.email_notifications(class="form-check-input") }}
+                                    {{ form.email_notifications.label(class="form-check-label") }}
+                                </div>
+                                <small class="form-text text-muted">
+                                    Send notifications via email
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.webhook_notifications(class="form-check-input") }}
+                                    {{ form.webhook_notifications.label(class="form-check-label") }}
+                                </div>
+                                <small class="form-text text-muted">
+                                    Send notifications via webhooks (Gotify, Teams, Discord, Slack, etc.)
+                                </small>
+                            </div>
+                            
+                            <!-- Notification Scenarios -->
+                            <div class="alert alert-info mb-0">
+                                <h6 class="alert-heading mb-2">
+                                    <i class="fas fa-info-circle me-2"></i>Notification Options
+                                </h6>
+                                <ul class="mb-0 small">
+                                    <li><strong>No Notifications:</strong> Disable both options to turn off all notifications</li>
+                                    <li><strong>Email Only:</strong> Enable email, disable webhooks</li>
+                                    <li><strong>Webhooks Only:</strong> Disable email, enable webhooks</li>
+                                    <li><strong>Both Methods:</strong> Enable both for maximum reliability</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -95,17 +156,141 @@
             </div>
         </div>
         
+        <!-- Webhook Management Section -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-satellite-dish me-2"></i>Webhook Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-1">Configured Webhooks</h6>
+                        <small class="text-muted">Manage your webhook endpoints for different notification services</small>
+                    </div>
+                    <a href="{{ url_for('main.add_webhook') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>Add Webhook
+                    </a>
+                </div>
+                
+                {% if current_user.webhooks %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Last Used</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for webhook in current_user.webhooks %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ webhook.name }}</strong>
+                                        <br><small class="text-muted">{{ webhook.url[:50] }}{% if webhook.url|length > 50 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            {% if webhook.webhook_type == 'gotify' %}
+                                                <i class="fas fa-bell me-1"></i>Gotify
+                                            {% elif webhook.webhook_type == 'teams' %}
+                                                <i class="fab fa-microsoft me-1"></i>Teams
+                                            {% elif webhook.webhook_type == 'discord' %}
+                                                <i class="fab fa-discord me-1"></i>Discord
+                                            {% elif webhook.webhook_type == 'slack' %}
+                                                <i class="fab fa-slack me-1"></i>Slack
+                                            {% else %}
+                                                <i class="fas fa-code me-1"></i>Generic
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if webhook.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if webhook.last_used %}
+                                            <small>{{ webhook.last_used.strftime('%m/%d/%Y %H:%M') }}</small>
+                                        {% else %}
+                                            <small class="text-muted">Never</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <form method="POST" action="{{ url_for('main.test_webhook', webhook_id=webhook.id) }}" class="d-inline">
+                                                {{ form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-outline-success btn-sm" title="Test Webhook">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                            </form>
+                                            <a href="{{ url_for('main.edit_webhook', id=webhook.id) }}" class="btn btn-outline-primary btn-sm" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('main.delete_webhook', id=webhook.id) }}" class="d-inline" 
+                                                  onsubmit="return confirm('Are you sure you want to delete this webhook?')">
+                                                {{ form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-satellite-dish fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-2">No webhooks configured yet</p>
+                        <small class="text-muted">Add a webhook to start receiving notifications via external services like Gotify, Teams, Discord, or Slack.</small>
+                    </div>
+                {% endif %}
+                
+                <!-- Webhook Examples -->
+                <div class="mt-3">
+                    <h6 class="mb-2">
+                        <i class="fas fa-info-circle me-2"></i>Supported Webhook Types
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-bell text-success me-2"></i><strong>Gotify:</strong> Self-hosted notification server</li>
+                                <li><i class="fab fa-microsoft text-primary me-2"></i><strong>Microsoft Teams:</strong> Incoming webhook connector</li>
+                                <li><i class="fab fa-discord text-info me-2"></i><strong>Discord:</strong> Channel webhook integration</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fab fa-slack text-warning me-2"></i><strong>Slack:</strong> Incoming webhook integration</li>
+                                <li><i class="fas fa-code text-secondary me-2"></i><strong>Generic:</strong> Custom JSON payload webhook</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="card mt-3">
             <div class="card-body">
                 <h6 class="card-title">
                     <i class="fas fa-info-circle me-2"></i>Notification Information
                 </h6>
                 <ul class="list-unstyled mb-0">
-                    <li><i class="fas fa-check text-success me-2"></i>Notifications are checked every hour</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Daily notifications are sent at your preferred time</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Only active subscriptions trigger notifications</li>
-                    <li><i class="fas fa-check text-success me-2"></i>You won't receive duplicate notifications on the same day</li>
-                    <li><i class="fas fa-paper-plane text-info me-2"></i>Use the "Send Test Email" button above to verify your email configuration</li>
+                    <li><i class="fas fa-clock text-primary me-2"></i>Notifications are checked every hour at your preferred time</li>
+                    <li><i class="fas fa-shield-alt text-success me-2"></i>Only active subscriptions trigger notifications</li>
+                    <li><i class="fas fa-calendar-check text-success me-2"></i>You won't receive duplicate notifications on the same day</li>
+                    <li><i class="fas fa-toggle-on text-info me-2"></i>You can use email only, webhooks only, both, or neither</li>
+                    <li><i class="fas fa-paper-plane text-info me-2"></i>Multiple webhook services can be configured simultaneously</li>
+                    <li><i class="fas fa-test-tube text-info me-2"></i>Test your configurations using the test buttons</li>
                 </ul>
             </div>
         </div>

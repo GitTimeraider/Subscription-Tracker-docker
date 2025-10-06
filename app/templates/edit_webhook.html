@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Webhook - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Edit Webhook: {{ webhook.name }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        <small class="form-text text-muted">
+                            A friendly name to identify this webhook
+                        </small>
+                        {% if form.name.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.webhook_type.label(class="form-label") }}
+                        {{ form.webhook_type(class="form-select", id="webhook-type-select") }}
+                        <small class="form-text text-muted">
+                            Select the type of webhook service you're using
+                        </small>
+                        {% if form.webhook_type.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.webhook_type.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.url.label(class="form-label") }}
+                        {{ form.url(class="form-control") }}
+                        <small class="form-text text-muted" id="url-help">
+                            The webhook URL provided by your service
+                        </small>
+                        {% if form.url.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.url.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Authentication Section -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-key me-2"></i>Authentication (Optional)
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3" id="auth-header-group">
+                                {{ form.auth_header.label(class="form-label") }}
+                                {{ form.auth_header(class="form-control", placeholder="Leave blank to keep existing") }}
+                                <small class="form-text text-muted" id="auth-header-help">
+                                    API key, token, or authorization string
+                                </small>
+                                {% if form.auth_header.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.auth_header.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="row" id="basic-auth-group" style="display: none;">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.auth_username.label(class="form-label") }}
+                                        {{ form.auth_username(class="form-control") }}
+                                        {% if form.auth_username.errors %}
+                                            <div class="text-danger mt-1">
+                                                {% for error in form.auth_username.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.auth_password.label(class="form-label") }}
+                                        {{ form.auth_password(class="form-control", placeholder="Leave blank to keep existing") }}
+                                        {% if form.auth_password.errors %}
+                                            <div class="text-danger mt-1">
+                                                {% for error in form.auth_password.errors %}
+                                                    <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.custom_headers.label(class="form-label") }}
+                                {{ form.custom_headers(class="form-control", rows="3") }}
+                                <small class="form-text text-muted">
+                                    Additional custom headers in JSON format (optional)
+                                </small>
+                                {% if form.custom_headers.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.custom_headers.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_active(class="form-check-input") }}
+                            {{ form.is_active.label(class="form-check-label") }}
+                        </div>
+                        <small class="form-text text-muted">
+                            Uncheck to disable this webhook without deleting it
+                        </small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.notification_settings') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back
+                        </a>
+                        <div>
+                            <form method="POST" action="{{ url_for('main.test_webhook', webhook_id=webhook.id) }}" class="d-inline me-2">
+                                {{ form.hidden_tag() }}
+                                <button type="submit" class="btn btn-outline-success">
+                                    <i class="fas fa-paper-plane me-2"></i>Test Webhook
+                                </button>
+                            </form>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update Webhook
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Webhook Status -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="mb-3">
+                    <i class="fas fa-info-circle me-2"></i>Webhook Status
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> 
+                            {% if webhook.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Type:</strong> 
+                            <span class="badge bg-secondary">
+                                {% if webhook.webhook_type == 'gotify' %}
+                                    <i class="fas fa-bell me-1"></i>Gotify
+                                {% elif webhook.webhook_type == 'teams' %}
+                                    <i class="fab fa-microsoft me-1"></i>Teams
+                                {% elif webhook.webhook_type == 'discord' %}
+                                    <i class="fab fa-discord me-1"></i>Discord
+                                {% elif webhook.webhook_type == 'slack' %}
+                                    <i class="fab fa-slack me-1"></i>Slack
+                                {% else %}
+                                    <i class="fas fa-code me-1"></i>Generic
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ webhook.created_at.strftime('%m/%d/%Y %H:%M') }}</p>
+                        <p><strong>Last Used:</strong> 
+                            {% if webhook.last_used %}
+                                {{ webhook.last_used.strftime('%m/%d/%Y %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const webhookTypeSelect = document.getElementById('webhook-type-select');
+    const urlHelp = document.getElementById('url-help');
+    const authHeaderGroup = document.getElementById('auth-header-group');
+    const authHeaderHelp = document.getElementById('auth-header-help');
+    const basicAuthGroup = document.getElementById('basic-auth-group');
+    
+    const examples = {
+        'gotify': {
+            url: 'The webhook URL should be: https://your-gotify-server.com/message',
+            auth: 'Enter your Gotify application token in the API Key field'
+        },
+        'teams': {
+            url: 'Use the Incoming Webhook URL from your Teams channel connector',
+            auth: 'No authentication required - the URL contains the secret'
+        },
+        'discord': {
+            url: 'Use the Discord webhook URL from your server settings',
+            auth: 'No authentication required - the URL contains the secret'
+        },
+        'slack': {
+            url: 'Use the Slack Incoming Webhook URL',
+            auth: 'No authentication required - the URL contains the secret'
+        },
+        'generic': {
+            url: 'Any HTTP endpoint that accepts JSON POST requests',
+            auth: 'Configure authentication as needed by your endpoint'
+        }
+    };
+    
+    function updateHelp() {
+        const selectedType = webhookTypeSelect.value;
+        const example = examples[selectedType];
+        
+        if (example) {
+            urlHelp.textContent = example.url;
+            authHeaderHelp.textContent = example.auth;
+        }
+        
+        // Show/hide authentication fields based on type
+        if (selectedType === 'generic') {
+            basicAuthGroup.style.display = 'block';
+        } else {
+            basicAuthGroup.style.display = 'none';
+        }
+    }
+    
+    webhookTypeSelect.addEventListener('change', updateHelp);
+    updateHelp(); // Initialize on page load
+    
+    // Handle test webhook form submission
+    const testForms = document.querySelectorAll('form[action*="test_webhook"]');
+    testForms.forEach(form => {
+        const button = form.querySelector('button[type="submit"]');
+        form.addEventListener('submit', function(e) {
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+            
+            // Re-enable button after form submission (in case of page reload failure)
+            setTimeout(function() {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }, 5000);
+        });
+    });
+});
+</script>
+{% endblock %}

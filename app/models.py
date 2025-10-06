@@ -27,6 +27,7 @@ class UserSettings(db.Model):
     
     # Notification settings
     email_notifications = db.Column(db.Boolean, default=True)
+    webhook_notifications = db.Column(db.Boolean, default=False)
     notification_days = db.Column(db.Integer, default=7)
     notification_time = db.Column(db.Integer, default=9)  # Hour of day (0-23) when to send notifications
     last_notification_sent = db.Column(db.Date)  # Track when last daily summary was sent
@@ -49,6 +50,55 @@ class UserSettings(db.Model):
 
     def __repr__(self):
         return f'<UserSettings {self.user_id}>'
+
+class Webhook(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    webhook_type = db.Column(db.String(50), nullable=False)  # 'gotify', 'teams', 'discord', 'slack', 'generic'
+    url = db.Column(db.String(500), nullable=False)
+    auth_header = db.Column(db.String(200))  # For API keys, tokens
+    auth_username = db.Column(db.String(100))  # For basic auth
+    auth_password = db.Column(db.String(200))  # For basic auth (hashed)
+    custom_headers = db.Column(db.Text)  # JSON string for custom headers
+    is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used = db.Column(db.DateTime)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('webhooks', lazy=True, cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<Webhook {self.name} ({self.webhook_type})>'
+    
+    def get_auth_headers(self):
+        """Get authentication headers for the webhook"""
+        headers = {'Content-Type': 'application/json'}
+        
+        # Add custom headers if any
+        if self.custom_headers:
+            try:
+                import json
+                custom = json.loads(self.custom_headers)
+                headers.update(custom)
+            except (ValueError, TypeError):
+                pass
+        
+        # Add authentication
+        if self.auth_header:
+            # Check if it's a bearer token format
+            if self.auth_header.startswith('Bearer '):
+                headers['Authorization'] = self.auth_header
+            elif self.webhook_type == 'gotify':
+                headers['X-Gotify-Key'] = self.auth_header
+            else:
+                headers['Authorization'] = f'Bearer {self.auth_header}'
+        elif self.auth_username and self.auth_password:
+            import base64
+            credentials = base64.b64encode(f'{self.auth_username}:{self.auth_password}'.encode()).decode()
+            headers['Authorization'] = f'Basic {credentials}'
+        
+        return headers
 
 class ExchangeRate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
