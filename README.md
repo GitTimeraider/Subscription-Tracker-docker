@@ -102,62 +102,6 @@ The application supports three database backends:
 - **PostgreSQL** - Robust relational database, recommended for production
 - **MariaDB/MySQL** - Popular relational database alternative
 
-### Quick Start (SQLite)
-
-1. **Clone the repository or use docker-compose:**
-   ```bash
-   docker-compose up -d
-   ```
-
-2. **Access the application:**
-   - Navigate to `http://localhost:5000`
-   - Default admin credentials: `admin` / `changeme`
-   - **⚠️ Change the default password immediately!**
-
-### Using PostgreSQL
-
-1. **Create environment file:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Configure PostgreSQL in .env:**
-   ```env
-   # Uncomment and configure these lines in .env
-   DATABASE_URL=postgresql://subscription_tracker:your_password@postgres:5432/subscription_tracker
-   POSTGRES_DB=subscription_tracker
-   POSTGRES_USER=subscription_tracker
-   POSTGRES_PASSWORD=your_secure_password
-   POSTGRES_PORT=5432
-   ```
-
-3. **Run with PostgreSQL:**
-   ```bash
-   docker-compose --profile postgres up -d
-   ```
-
-### Using MariaDB
-
-1. **Create environment file:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Configure MariaDB in .env:**
-   ```env
-   # Uncomment and configure these lines in .env
-   DATABASE_URL=mysql+pymysql://subscription_tracker:your_password@mariadb:3306/subscription_tracker
-   MYSQL_DATABASE=subscription_tracker
-   MYSQL_USER=subscription_tracker
-   MYSQL_PASSWORD=your_secure_password
-   MYSQL_ROOT_PASSWORD=your_root_password
-   MYSQL_PORT=3306
-   ```
-
-3. **Run with MariaDB:**
-   ```bash
-   docker-compose --profile mariadb up -d
-   ```
 
 ### Using Docker Compose (Manual Configuration)
 ```yaml
@@ -243,6 +187,18 @@ All of these are optional, though it is advised to use the SECRET_KEY and the MA
 | `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
 | `PGID` | Host group ID to run the app process as | 1000 |
 
+#### Database URL Examples
+```bash
+# SQLite (default)
+DATABASE_URL=sqlite:///subscriptions.db
+
+# PostgreSQL
+DATABASE_URL=postgresql://username:password@postgres:5432/database_name
+
+# MariaDB/MySQL
+DATABASE_URL=mysql+pymysql://username:password@mariadb:3306/database_name
+```
+
 #### Email Configuration Variables
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -259,34 +215,6 @@ All of these are optional, though it is advised to use the SECRET_KEY and the MA
 | `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates (per provider) | 1440 (24h) |
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
 
-#### PostgreSQL Database Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_DB` | PostgreSQL database name | subscription_tracker |
-| `POSTGRES_USER` | PostgreSQL username | subscription_tracker |
-| `POSTGRES_PASSWORD` | PostgreSQL password | subscription_tracker |
-| `POSTGRES_PORT` | PostgreSQL port | 5432 |
-
-#### MariaDB/MySQL Database Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MYSQL_DATABASE` | MySQL/MariaDB database name | subscription_tracker |
-| `MYSQL_USER` | MySQL/MariaDB username | subscription_tracker |
-| `MYSQL_PASSWORD` | MySQL/MariaDB password | subscription_tracker |
-| `MYSQL_ROOT_PASSWORD` | MySQL/MariaDB root password | root_password |
-| `MYSQL_PORT` | MySQL/MariaDB port | 3306 |
-
-#### Database URL Examples
-```bash
-# SQLite (default)
-DATABASE_URL=sqlite:///subscriptions.db
-
-# PostgreSQL
-DATABASE_URL=postgresql://username:password@postgres:5432/database_name
-
-# MariaDB/MySQL
-DATABASE_URL=mysql+pymysql://username:password@mariadb:3306/database_name
-```
 
 ### Exchange Rate Providers
 
@@ -591,6 +519,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
