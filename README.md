@@ -95,7 +95,71 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 
 ## 🐳 Docker Deployment
 
-### Using Docker Compose
+### Database Options
+
+The application supports three database backends:
+- **SQLite** (default) - File-based, no additional setup required
+- **PostgreSQL** - Robust relational database, recommended for production
+- **MariaDB/MySQL** - Popular relational database alternative
+
+### Quick Start (SQLite)
+
+1. **Clone the repository or use docker-compose:**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Access the application:**
+   - Navigate to `http://localhost:5000`
+   - Default admin credentials: `admin` / `changeme`
+   - **⚠️ Change the default password immediately!**
+
+### Using PostgreSQL
+
+1. **Create environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configure PostgreSQL in .env:**
+   ```env
+   # Uncomment and configure these lines in .env
+   DATABASE_URL=postgresql://subscription_tracker:your_password@postgres:5432/subscription_tracker
+   POSTGRES_DB=subscription_tracker
+   POSTGRES_USER=subscription_tracker
+   POSTGRES_PASSWORD=your_secure_password
+   POSTGRES_PORT=5432
+   ```
+
+3. **Run with PostgreSQL:**
+   ```bash
+   docker-compose --profile postgres up -d
+   ```
+
+### Using MariaDB
+
+1. **Create environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configure MariaDB in .env:**
+   ```env
+   # Uncomment and configure these lines in .env
+   DATABASE_URL=mysql+pymysql://subscription_tracker:your_password@mariadb:3306/subscription_tracker
+   MYSQL_DATABASE=subscription_tracker
+   MYSQL_USER=subscription_tracker
+   MYSQL_PASSWORD=your_secure_password
+   MYSQL_ROOT_PASSWORD=your_root_password
+   MYSQL_PORT=3306
+   ```
+
+3. **Run with MariaDB:**
+   ```bash
+   docker-compose --profile mariadb up -d
+   ```
+
+### Using Docker Compose (Manual Configuration)
 ```yaml
 version: '3.8'
 services:
@@ -105,6 +169,7 @@ services:
       - "5000:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///subscriptions.db}
       - MAIL_SERVER=${MAIL_SERVER}
       - MAIL_PORT=${MAIL_PORT}
       - MAIL_USE_TLS=${MAIL_USE_TLS}
@@ -132,7 +197,14 @@ services:
 
 3. **Run with docker-compose:**
    ```bash
+   # SQLite (default)
    docker-compose up -d
+   
+   # PostgreSQL
+   docker-compose --profile postgres up -d
+   
+   # MariaDB
+   docker-compose --profile mariadb up -d
    ```
 
 4. **Access the application:**
@@ -141,28 +213,70 @@ services:
    - **⚠️ Change the default password immediately!**
    - Only admins can create new user accounts
 
+### Database Migration
+
+When switching from SQLite to PostgreSQL/MariaDB, you'll start with a fresh database. The application will automatically create the necessary tables on first startup. If you need to migrate existing data, you'll need to export/import your data manually.
+
 ## ⚙️ Configuration
 
 ### Environment Variables
 
 All of these are optional, though it is advised to use the SECRET_KEY and the MAIL_ environmentals to the very least.
 
+#### Core Application Variables
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SECRET_KEY` | Flask secret key for sessions | Random string |
 | `DATABASE_URL` | Database connection string | `sqlite:///subscriptions.db` |
+| `DAYS_BEFORE_EXPIRY` | Default days before expiry to send notification | 7 |
+| `ITEMS_PER_PAGE` | Pagination size for lists | 20 |
+| `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
+| `PGID` | Host group ID to run the app process as | 1000 |
+
+#### Email Configuration Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `MAIL_SERVER` | SMTP server address | (unset) |
 | `MAIL_PORT` | SMTP server port | 587 |
 | `MAIL_USE_TLS` | Enable TLS for email (`true`/`false`) | true |
 | `MAIL_USERNAME` | SMTP username | (unset) |
 | `MAIL_PASSWORD` | SMTP password / app password | (unset) |
 | `MAIL_FROM` | From email address | (unset) |
-| `DAYS_BEFORE_EXPIRY` | Default days before expiry to send notification | 7 |
-| `ITEMS_PER_PAGE` | Pagination size for lists | 20 |
+
+#### Currency Exchange Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates (per provider) | 1440 (24h) |
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
-| `PUID` | Host user ID to run the app process as (for mounted volume ownership) | 1000 |
-| `PGID` | Host group ID to run the app process as | 1000 |
+
+#### PostgreSQL Database Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_DB` | PostgreSQL database name | subscription_tracker |
+| `POSTGRES_USER` | PostgreSQL username | subscription_tracker |
+| `POSTGRES_PASSWORD` | PostgreSQL password | subscription_tracker |
+| `POSTGRES_PORT` | PostgreSQL port | 5432 |
+
+#### MariaDB/MySQL Database Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MYSQL_DATABASE` | MySQL/MariaDB database name | subscription_tracker |
+| `MYSQL_USER` | MySQL/MariaDB username | subscription_tracker |
+| `MYSQL_PASSWORD` | MySQL/MariaDB password | subscription_tracker |
+| `MYSQL_ROOT_PASSWORD` | MySQL/MariaDB root password | root_password |
+| `MYSQL_PORT` | MySQL/MariaDB port | 3306 |
+
+#### Database URL Examples
+```bash
+# SQLite (default)
+DATABASE_URL=sqlite:///subscriptions.db
+
+# PostgreSQL
+DATABASE_URL=postgresql://username:password@postgres:5432/database_name
+
+# MariaDB/MySQL
+DATABASE_URL=mysql+pymysql://username:password@mariadb:3306/database_name
+```
 
 ### Exchange Rate Providers
 
@@ -388,9 +502,55 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 7. Check application logs for error messages
 
 ### Database Issues
+
+#### SQLite Issues
 1. Stop the application
 2. Delete `subscriptions.db` (⚠️ this will delete all data)
 3. Restart the application to recreate the database
+
+#### PostgreSQL Connection Issues
+1. **Check if PostgreSQL service is running:**
+   ```bash
+   docker-compose logs postgres
+   ```
+2. **Verify connection parameters** in your `.env` file
+3. **Check DATABASE_URL format:**
+   ```bash
+   DATABASE_URL=postgresql://username:password@postgres:5432/database_name
+   ```
+4. **Restart PostgreSQL service:**
+   ```bash
+   docker-compose restart postgres
+   ```
+
+#### MariaDB/MySQL Connection Issues
+1. **Check if MariaDB service is running:**
+   ```bash
+   docker-compose logs mariadb
+   ```
+2. **Verify connection parameters** in your `.env` file
+3. **Check DATABASE_URL format:**
+   ```bash
+   DATABASE_URL=mysql+pymysql://username:password@mariadb:3306/database_name
+   ```
+4. **Restart MariaDB service:**
+   ```bash
+   docker-compose restart mariadb
+   ```
+
+#### Database Migration Issues
+- When switching database types, you'll start with a fresh database
+- The application will automatically create tables on first startup
+- Check application logs for database connection errors:
+  ```bash
+  docker-compose logs web
+  ```
+
+#### Common Database Connection Errors
+- **"Connection refused"**: Database service isn't running or wrong host/port
+- **"Authentication failed"**: Wrong username/password combination
+- **"Database does not exist"**: Database name doesn't match or wasn't created
+- **"SSL required"**: Some cloud databases require SSL connections in the DATABASE_URL
 
 ### Exchange Rates Not Updating / Provider Unavailable
 1. Open General Settings and use the Refresh Rates button.

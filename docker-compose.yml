@@ -7,6 +7,7 @@ services:
       - "5000:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///subscriptions.db}
       - MAIL_SERVER=${MAIL_SERVER}
       - MAIL_PORT=${MAIL_PORT}
       - MAIL_USE_TLS=${MAIL_USE_TLS}
@@ -22,3 +23,36 @@ services:
       - PERFORMANCE_LOGGING=${PERFORMANCE_LOGGING:-true}
     volumes:
       - ./data:/app/instance
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-subscription_tracker}
+      - POSTGRES_USER=${POSTGRES_USER:-subscription_tracker}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-subscription_tracker}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    profiles:
+      - postgres
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-subscription_tracker}
+      - MYSQL_USER=${MYSQL_USER:-subscription_tracker}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-subscription_tracker}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    profiles:
+      - mariadb
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mariadb_data:

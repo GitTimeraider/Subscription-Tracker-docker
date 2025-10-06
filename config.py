@@ -6,16 +6,52 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Database connection pool settings for SQLite
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_timeout': 10,  # Reduced from 20 to 10 seconds
-        'pool_recycle': 3600,
-        'pool_pre_ping': True,
-        'connect_args': {
-            'timeout': 20,  # Reduced from 30 to 20 seconds
-            'check_same_thread': False
-        } if 'sqlite' in (os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db') else {}
-    }
+    # Database connection pool settings
+    @classmethod
+    def get_engine_options(cls):
+        database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
+        
+        if 'sqlite' in database_url.lower():
+            # SQLite-specific settings
+            return {
+                'pool_timeout': 10,
+                'pool_recycle': 3600,
+                'pool_pre_ping': True,
+                'connect_args': {
+                    'timeout': 20,
+                    'check_same_thread': False
+                }
+            }
+        elif 'postgresql' in database_url.lower() or 'postgres' in database_url.lower():
+            # PostgreSQL-specific settings
+            return {
+                'pool_size': 10,
+                'max_overflow': 20,
+                'pool_timeout': 30,
+                'pool_recycle': 3600,
+                'pool_pre_ping': True
+            }
+        elif 'mysql' in database_url.lower() or 'mariadb' in database_url.lower():
+            # MySQL/MariaDB-specific settings
+            return {
+                'pool_size': 10,
+                'max_overflow': 20,
+                'pool_timeout': 30,
+                'pool_recycle': 3600,
+                'pool_pre_ping': True,
+                'connect_args': {
+                    'charset': 'utf8mb4'
+                }
+            }
+        else:
+            # Default settings for other databases
+            return {
+                'pool_timeout': 30,
+                'pool_recycle': 3600,
+                'pool_pre_ping': True
+            }
+    
+    SQLALCHEMY_ENGINE_OPTIONS = get_engine_options()
 
     # Email configuration
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
