@@ -3,7 +3,13 @@ from datetime import timedelta
 
 def normalize_database_url():
     """Normalize DATABASE_URL to use correct driver for psycopg3"""
-    database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
+    database_url = os.environ.get('DATABASE_URL')
+    
+    # Default SQLite path - ensure it's in the writable instance directory
+    if not database_url:
+        # Use absolute path to ensure database is in the mounted volume
+        instance_dir = os.path.abspath('/app/instance')
+        database_url = f'sqlite:///{instance_dir}/subscriptions.db'
     
     # Convert postgresql:// or postgres:// to postgresql+psycopg:// for psycopg3
     if database_url.startswith('postgresql://') or database_url.startswith('postgres://'):
