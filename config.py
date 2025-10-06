@@ -1,6 +1,20 @@
 import os
 from datetime import timedelta
 
+def normalize_database_url():
+    """Normalize DATABASE_URL to use correct driver for psycopg3"""
+    database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
+    
+    # Convert postgresql:// or postgres:// to postgresql+psycopg:// for psycopg3
+    if database_url.startswith('postgresql://') or database_url.startswith('postgres://'):
+        # Replace the scheme to explicitly use psycopg3
+        if database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        elif database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+    
+    return database_url
+
 def get_engine_options():
     """Get database engine options based on DATABASE_URL"""
     database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
@@ -18,6 +32,7 @@ def get_engine_options():
         }
     elif 'postgresql' in database_url.lower() or 'postgres' in database_url.lower():
         # PostgreSQL-specific settings (psycopg3 compatible)
+        # Uses psycopg3 with optimized connection pooling
         return {
             'pool_size': 10,
             'max_overflow': 20,
@@ -25,7 +40,9 @@ def get_engine_options():
             'pool_recycle': 3600,
             'pool_pre_ping': True,
             'connect_args': {
-                'connect_timeout': 10
+                'connect_timeout': 10,
+                # psycopg3 specific options can be added here
+                'prepare_threshold': 0,  # Disable prepared statements by default
             }
         }
     elif 'mysql' in database_url.lower() or 'mariadb' in database_url.lower():
@@ -50,7 +67,7 @@ def get_engine_options():
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'mad-hatter-secret-key-change-me'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
+    SQLALCHEMY_DATABASE_URI = normalize_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Database connection pool settings

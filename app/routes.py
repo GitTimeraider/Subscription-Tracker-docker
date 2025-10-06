@@ -2,10 +2,10 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from urllib.parse import urlparse
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
-from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate
+from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate, Webhook
 from app.forms import (LoginForm, SubscriptionForm, UserSettingsForm, 
                       NotificationSettingsForm, GeneralSettingsForm, PaymentMethodForm,
-                      AdminUserForm, AdminEditUserForm)
+                      AdminUserForm, AdminEditUserForm, WebhookForm)
 from app.currency import currency_converter
 from datetime import datetime, timedelta, date
 import os
@@ -375,6 +375,7 @@ def notification_settings():
         else:
             settings = current_user.settings
         settings.email_notifications = form.email_notifications.data
+        settings.webhook_notifications = form.webhook_notifications.data
         settings.notification_days = form.notification_days.data
         settings.notification_time = form.notification_time.data
         db.session.commit()
@@ -396,6 +397,92 @@ def test_email():
     
     # Send test email
     result = send_test_email(current_app._get_current_object(), current_user)
+    
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
+    
+    return redirect(url_for('main.notification_settings'))
+
+@main.route('/add_webhook', methods=['GET', 'POST'])
+@login_required
+def add_webhook():
+    """Add a new webhook configuration"""
+    form = WebhookForm()
+    if form.validate_on_submit():
+        webhook = Webhook(
+            name=form.name.data,
+            webhook_type=form.webhook_type.data,
+            url=form.url.data,
+            auth_header=form.auth_header.data if form.auth_header.data else None,
+            auth_username=form.auth_username.data if form.auth_username.data else None,
+            auth_password=form.auth_password.data if form.auth_password.data else None,
+            custom_headers=form.custom_headers.data if form.custom_headers.data else None,
+            is_active=form.is_active.data,
+            user_id=current_user.id
+        )
+        db.session.add(webhook)
+        db.session.commit()
+        flash(f'Webhook "{webhook.name}" added successfully!', 'success')
+        return redirect(url_for('main.notification_settings'))
+    return render_template('add_webhook.html', form=form)
+
+@main.route('/edit_webhook/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_webhook(id):
+    """Edit an existing webhook configuration"""
+    webhook = Webhook.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    form = WebhookForm(obj=webhook)
+    
+    # Don't populate sensitive fields on GET
+    if request.method == 'GET':
+        form.auth_header.data = ''
+        form.auth_password.data = ''
+    
+    if form.validate_on_submit():
+        webhook.name = form.name.data
+        webhook.webhook_type = form.webhook_type.data
+        webhook.url = form.url.data
+        webhook.is_active = form.is_active.data
+        webhook.custom_headers = form.custom_headers.data if form.custom_headers.data else None
+        
+        # Only update auth fields if they're provided
+        if form.auth_header.data:
+            webhook.auth_header = form.auth_header.data
+        if form.auth_username.data:
+            webhook.auth_username = form.auth_username.data
+        if form.auth_password.data:
+            webhook.auth_password = form.auth_password.data
+        
+        db.session.commit()
+        flash(f'Webhook "{webhook.name}" updated successfully!', 'success')
+        return redirect(url_for('main.notification_settings'))
+    
+    return render_template('edit_webhook.html', form=form, webhook=webhook)
+
+@main.route('/delete_webhook/<int:id>', methods=['POST'])
+@login_required
+def delete_webhook(id):
+    """Delete a webhook configuration"""
+    webhook = Webhook.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    webhook_name = webhook.name
+    db.session.delete(webhook)
+    db.session.commit()
+    flash(f'Webhook "{webhook_name}" deleted successfully!', 'success')
+    return redirect(url_for('main.notification_settings'))
+
+@main.route('/test_webhook/<int:webhook_id>', methods=['POST'])
+@login_required
+def test_webhook(webhook_id):
+    """Send a test webhook to verify configuration"""
+    from app.webhooks import send_test_webhook
+    from flask import current_app
+    
+    webhook = Webhook.query.filter_by(id=webhook_id, user_id=current_user.id).first_or_404()
+    
+    # Send test webhook
+    result = send_test_webhook(current_app._get_current_object(), webhook, current_user)
     
     if result['success']:
         flash(result['message'], 'success')

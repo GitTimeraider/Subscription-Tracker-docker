@@ -28,6 +28,126 @@ def timeout(seconds):
         signal.signal(signal.SIGALRM, old_handler)
         signal.alarm(0)
 
+def migrate_database():
+    """Automatically migrate database schema to support new features"""
+    try:
+        from sqlalchemy import text, inspect
+        
+        inspector = inspect(db.engine)
+        
+        # Detect database type for appropriate SQL syntax
+        db_dialect = db.engine.dialect.name
+        print(f"🔍 Detected database: {db_dialect}")
+        
+        # Check if webhook_notifications column exists in user_settings table
+        user_settings_columns = [col['name'] for col in inspector.get_columns('user_settings')]
+        
+        migrations_applied = []
+        
+        # Migration 1: Add webhook_notifications column to user_settings
+        if 'webhook_notifications' not in user_settings_columns:
+            try:
+                # Use appropriate SQL for different databases
+                if db_dialect == 'postgresql':
+                    alter_sql = 'ALTER TABLE user_settings ADD COLUMN webhook_notifications BOOLEAN DEFAULT FALSE'
+                elif db_dialect == 'mysql':
+                    alter_sql = 'ALTER TABLE user_settings ADD COLUMN webhook_notifications BOOLEAN DEFAULT FALSE'
+                else:  # SQLite
+                    alter_sql = 'ALTER TABLE user_settings ADD COLUMN webhook_notifications BOOLEAN DEFAULT FALSE'
+                
+                with db.engine.connect() as conn:
+                    conn.execute(text(alter_sql))
+                    conn.commit()
+                migrations_applied.append("Added webhook_notifications column to user_settings")
+            except Exception as e:
+                print(f"⚠️ Could not add webhook_notifications column (may already exist): {e}")
+        
+        # Migration 2: Create webhook table if it doesn't exist
+        if not inspector.has_table('webhook'):
+            try:
+                # Create webhook table with database-specific syntax
+                if db_dialect == 'postgresql':
+                    create_webhook_table = text("""
+                    CREATE TABLE webhook (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        webhook_type VARCHAR(50) NOT NULL,
+                        url VARCHAR(500) NOT NULL,
+                        auth_header VARCHAR(200),
+                        auth_username VARCHAR(100),
+                        auth_password VARCHAR(200),
+                        custom_headers TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        user_id INTEGER NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_used TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES "user"(id)
+                    )
+                    """)
+                elif db_dialect == 'mysql':
+                    create_webhook_table = text("""
+                    CREATE TABLE webhook (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        webhook_type VARCHAR(50) NOT NULL,
+                        url VARCHAR(500) NOT NULL,
+                        auth_header VARCHAR(200),
+                        auth_username VARCHAR(100),
+                        auth_password VARCHAR(200),
+                        custom_headers TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        user_id INTEGER NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        last_used DATETIME,
+                        FOREIGN KEY (user_id) REFERENCES user(id)
+                    )
+                    """)
+                else:  # SQLite
+                    create_webhook_table = text("""
+                    CREATE TABLE webhook (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        webhook_type VARCHAR(50) NOT NULL,
+                        url VARCHAR(500) NOT NULL,
+                        auth_header VARCHAR(200),
+                        auth_username VARCHAR(100),
+                        auth_password VARCHAR(200),
+                        custom_headers TEXT,
+                        is_active BOOLEAN DEFAULT 1,
+                        user_id INTEGER NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        last_used DATETIME,
+                        FOREIGN KEY (user_id) REFERENCES user(id)
+                    )
+                    """)
+                
+                with db.engine.connect() as conn:
+                    conn.execute(create_webhook_table)
+                    conn.commit()
+                migrations_applied.append("Created webhook table")
+            except Exception as e:
+                print(f"⚠️ Could not create webhook table (may already exist): {e}")
+        
+        # Migration 3: Update existing user_settings to have webhook_notifications = FALSE if NULL
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text('UPDATE user_settings SET webhook_notifications = FALSE WHERE webhook_notifications IS NULL'))
+                conn.commit()
+            migrations_applied.append("Updated existing user settings with default webhook_notifications value")
+        except Exception as e:
+            print(f"⚠️ Could not update existing user settings: {e}")
+        
+        if migrations_applied:
+            print("🔄 Database migrations applied:")
+            for migration in migrations_applied:
+                print(f"   ✅ {migration}")
+        else:
+            print("✅ Database schema is up to date")
+            
+    except Exception as e:
+        print(f"❌ Database migration failed: {e}")
+        print("⚠️ The application may not work correctly until database schema is updated")
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -161,6 +281,9 @@ def create_app():
     app.register_blueprint(main)
 
     with app.app_context():
+        # Run automatic database migrations before creating tables
+        migrate_database()
+        
         db.create_all()
 
         # Create default admin user if no admin users exist
