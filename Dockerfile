@@ -32,18 +32,33 @@ RUN apt-get update \
 		curl \
 	&& rm -rf /var/lib/apt/lists/*
 
+# Create application user and group at build time for security hardening
+# This supports read-only filesystems and user: directives
+RUN groupadd -r -g 1000 appgroup \
+	&& useradd -r -u 1000 -g appgroup -m -s /bin/bash appuser \
+	&& mkdir -p /app/instance \
+	&& chown -R appuser:appgroup /app
+
 # Copy installed packages from builder stage
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-COPY . .
+# Copy application files and set ownership
+COPY --chown=appuser:appgroup . .
 
-# Entrypoint will create/update user/group according to PUID/PGID
+# Make entrypoint executable
 RUN chmod +x /app/docker-entrypoint.sh
 
+# Create writable directories for read-only filesystem compatibility
+RUN mkdir -p /tmp/app-runtime /var/tmp/app \
+	&& chown -R appuser:appgroup /tmp/app-runtime /var/tmp/app \
+	&& chmod 755 /tmp/app-runtime /var/tmp/app
+
 ENV FLASK_APP=run.py \
-	PUID=1000 \
-	PGID=1000
+	USER=appuser \
+	GROUP=appgroup \
+	UID=1000 \
+	GID=1000
 
 # Health check configuration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
