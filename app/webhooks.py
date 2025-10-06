@@ -15,7 +15,7 @@ and testing webhook configurations.
 import requests
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from flask import current_app
 
@@ -58,7 +58,7 @@ class WebhookSender:
             response.raise_for_status()
             
             # Update last_used timestamp
-            self.webhook.last_used = datetime.utcnow()
+            self.webhook.last_used = datetime.now(timezone.utc)
             from app import db
             db.session.commit()
             
@@ -111,7 +111,7 @@ class DiscordWebhookSender(WebhookSender):
         
         embed = {
             "description": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "footer": {
                 "text": "Subscription Tracker"
             }
@@ -151,7 +151,7 @@ class SlackWebhookSender(WebhookSender):
         
         attachment = {
             "text": message,
-            "ts": int(datetime.utcnow().timestamp()),
+            "ts": int(datetime.now(timezone.utc).timestamp()),
             "footer": "Subscription Tracker"
         }
         
@@ -239,7 +239,7 @@ class GenericWebhookSender(WebhookSender):
     def prepare_payload(self, message: str, title: str = None, color: str = None) -> Dict[str, Any]:
         payload = {
             "text": message,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         if title:
