@@ -12,83 +12,142 @@ GUID=${GUID:-1000}
 APP_USER=${USER:-appuser}
 APP_GROUP=${GROUP:-appgroup}
 
-# Function to check if running with read-only filesystem
+# Function to check if running with read-only filesystem or restricted user management
 is_readonly_fs() {
-    # Try to create a test file in /tmp to check if filesystem is writable
-    touch /tmp/.write-test 2>/dev/null && rm -f /tmp/.write-test 2>/dev/null
-    return $?
+    # Check if root filesystem is read-only
+    if mount | grep -q 'on / .*ro,'; then
+        return 0  # Read-only
+    fi
+    
+    # Check if we can write to /tmp (basic filesystem test)
+    if ! touch /tmp/.write-test 2>/dev/null; then
+        return 0  # Read-only
+    fi
+    rm -f /tmp/.write-test 2>/dev/null
+    
+    # Check if /etc/passwd and /etc/group are writable (critical for user management)
+    if [ ! -w /etc/passwd ] || [ ! -w /etc/group ]; then
+        return 0  # User management not possible
+    fi
+    
+    return 1  # Writable
 }
 
-# Function to handle PUID/GUID configuration with comprehensive support
+# Function to detect if container was started with --user directive
+is_user_directive() {
+    # If we're not running as root, we were likely started with --user
+    if [ "$(id -u)" != "0" ]; then
+        return 0  # User directive used
+    fi
+    
+    # Additional check: if PUID/GUID are set but we can't modify users, likely user directive
+    if [ -n "$PUID" ] && [ -n "$GUID" ] && is_readonly_fs; then
+        return 0  # Likely user directive scenario
+    fi
+    
+    return 1  # Not user directive
+}
+
+# Function to handle PUID/GUID configuration with read-only and user directive support
 setup_user_mapping() {
     echo "🔧 Setting up user mapping..."
+    echo "Current user: $(id)"
     echo "PUID=${PUID:-not set}, GUID=${GUID:-not set}"
     echo "APP_USER=${APP_USER}, APP_GROUP=${APP_GROUP}"
     
-    # If we're running as root and PUID/GUID are specified, handle user mapping
-    if [ "$(id -u)" = "0" ] && [ -n "$PUID" ] && [ -n "$GUID" ]; then
-        
-        # Check if we can modify /etc/passwd (not read-only filesystem)
-        if ! is_readonly_fs && [ -w /etc/passwd ]; then
-            echo "🔧 Setting up PUID/GUID mapping: $PUID:$GUID"
-            
-            # Create or modify group to match GUID
-            if ! getent group "$GUID" >/dev/null 2>&1; then
-                if groupadd -g "$GUID" "$APP_GROUP" 2>/dev/null; then
-                    echo "✅ Created group $APP_GROUP with GID $GUID"
-                else
-                    echo "⚠️ Could not create group, will use existing"
-                fi
-            else
-                echo "ℹ️ Group with GID $GUID already exists"
-            fi
-            
-            # Create or modify user to match PUID
-            if ! getent passwd "$PUID" >/dev/null 2>&1; then
-                if useradd -u "$PUID" -g "$GUID" -d /app -s /bin/bash "$APP_USER" 2>/dev/null; then
-                    echo "✅ Created user $APP_USER with UID $PUID"
-                else
-                    echo "⚠️ Could not create user, will use existing"
-                fi
-            else
-                # User with this UID exists, try to modify if it's our app user
-                existing_user=$(getent passwd "$PUID" | cut -d: -f1)
-                if [ "$existing_user" = "$APP_USER" ]; then
-                    if usermod -g "$GUID" "$APP_USER" 2>/dev/null; then
-                        echo "✅ Updated user $APP_USER with GID $GUID"
-                    else
-                        echo "⚠️ Could not update user group"
-                    fi
-                else
-                    echo "ℹ️ UID $PUID is used by $existing_user"
-                fi
-            fi
-            
-            # Update APP_USER and APP_GROUP to use numeric IDs for gosu
-            APP_USER="$PUID"
-            APP_GROUP="$GUID"
-            
-            echo "✅ User mapping configured: $APP_USER:$APP_GROUP"
-        else
-            echo "⚠️ Cannot modify users in read-only filesystem or /etc/passwd not writable"
-            echo "💡 Alternative approaches:"
-            echo "   1. Use --user $PUID:$GUID with Docker"
-            echo "   2. Mount writable /etc/passwd and /etc/group"
-            echo "   3. Use user directive in docker-compose.yml"
-            
-            # Still update variables for consistency
-            APP_USER="$PUID"
-            APP_GROUP="$GUID"
-        fi
-    elif [ -n "$PUID" ] || [ -n "$GUID" ]; then
-        echo "ℹ️ PUID/GUID specified but not running as root - using user directive method"
-        if [ -n "$PUID" ]; then APP_USER="$PUID"; fi
-        if [ -n "$GUID" ]; then APP_GROUP="$GUID"; fi
-    else
-        echo "ℹ️ Using build-time user: $APP_USER:$APP_GROUP"
+    # Detect deployment scenario
+    local readonly_detected=false
+    local user_directive_detected=false
+    
+    if is_readonly_fs; then
+        readonly_detected=true
+        echo "🔒 Read-only filesystem or restricted user management detected"
     fi
     
-    echo "📋 Final user mapping: $APP_USER:$APP_GROUP"
+    if is_user_directive; then
+        user_directive_detected=true
+        echo "👤 Container started with user directive (--user flag)"
+    fi
+    
+    # Handle different scenarios
+    if [ "$user_directive_detected" = "true" ]; then
+        echo "📋 User directive mode: Running as $(id -u):$(id -g)"
+        echo "ℹ️ PUID/GUID variables ignored in user directive mode"
+        echo "✅ Using container's current user for all operations"
+        # Don't try to change users or use gosu
+        APP_USER="$(id -u)"
+        APP_GROUP="$(id -g)"
+        
+    elif [ "$readonly_detected" = "true" ]; then
+        echo "🔒 Read-only filesystem mode"
+        if [ "$(id -u)" = "0" ]; then
+            echo "⚠️ Running as root but cannot create users in read-only filesystem"
+            echo "💡 For PUID/GUID support in read-only mode, use:"
+            echo "   docker run --user $PUID:$GUID --read-only ..."
+            echo "✅ Will use build-time user for privilege dropping"
+            # Use build-time defaults since we can't create custom users
+            APP_USER="1000"
+            APP_GROUP="1000"
+        else
+            echo "✅ Already running as non-root user in read-only mode"
+            APP_USER="$(id -u)"
+            APP_GROUP="$(id -g)"
+        fi
+        
+    elif [ "$(id -u)" = "0" ] && [ -n "$PUID" ] && [ -n "$GUID" ]; then
+        echo "🔧 Standard PUID/GUID mode: Setting up mapping $PUID:$GUID"
+        
+        # Create or modify group to match GUID
+        if ! getent group "$GUID" >/dev/null 2>&1; then
+            if groupadd -g "$GUID" "$APP_GROUP" 2>/dev/null; then
+                echo "✅ Created group $APP_GROUP with GID $GUID"
+            else
+                echo "⚠️ Could not create group, will use existing"
+            fi
+        else
+            echo "ℹ️ Group with GID $GUID already exists"
+        fi
+        
+        # Create or modify user to match PUID
+        if ! getent passwd "$PUID" >/dev/null 2>&1; then
+            if useradd -u "$PUID" -g "$GUID" -d /app -s /bin/bash "$APP_USER" 2>/dev/null; then
+                echo "✅ Created user $APP_USER with UID $PUID"
+            else
+                echo "⚠️ Could not create user, will use existing"
+            fi
+        else
+            # User exists, check if it's ours or handle gracefully
+            existing_user=$(getent passwd "$PUID" | cut -d: -f1)
+            if [ "$existing_user" = "$APP_USER" ]; then
+                if usermod -g "$GUID" "$APP_USER" 2>/dev/null; then
+                    echo "✅ Updated user $APP_USER with GID $GUID"
+                else
+                    echo "ℹ️ User $APP_USER already properly configured"
+                fi
+            else
+                echo "ℹ️ UID $PUID is used by $existing_user (will use numeric ID)"
+            fi
+        fi
+        
+        # Use PUID/GUID for operations
+        APP_USER="$PUID"
+        APP_GROUP="$GUID"
+        echo "✅ User mapping configured: $APP_USER:$APP_GROUP"
+        
+    elif [ "$(id -u)" = "0" ]; then
+        echo "� Root mode without PUID/GUID: Using build-time defaults"
+        APP_USER="1000"
+        APP_GROUP="1000"
+        echo "💡 To use custom IDs, set PUID and GUID environment variables"
+        
+    else
+        echo "👤 Non-root mode: Using current user $(id -u):$(id -g)"
+        APP_USER="$(id -u)"
+        APP_GROUP="$(id -g)"
+    fi
+    
+    echo "📋 Final configuration: $APP_USER:$APP_GROUP"
+    echo "🎯 Deployment mode: $([ "$readonly_detected" = "true" ] && echo "READ-ONLY" || echo "STANDARD") $([ "$user_directive_detected" = "true" ] && echo "+ USER-DIRECTIVE" || echo "")"
 }
 
 # Ensure writable directories exist for application data with comprehensive self-fixing
@@ -118,13 +177,21 @@ ensure_writable_dirs() {
         echo "📁 Created /app/instance directory"
         
         # Fix ownership and permissions
-        if [ "$(id -u)" = "0" ]; then
+        if [ "$(id -u)" = "0" ] && ! is_user_directive; then
             echo "🔑 Running as root - fixing ownership and permissions"
             
-            # Set directory ownership and permissions
-            chown "$target_uid:$target_gid" /app/instance
-            chmod 755 /app/instance
-            echo "✅ Set /app/instance ownership to $target_uid:$target_gid with 755 permissions"
+            # Set directory ownership and permissions (with error handling for read-only)
+            if chown "$target_uid:$target_gid" /app/instance 2>/dev/null; then
+                chmod 755 /app/instance
+                echo "✅ Set /app/instance ownership to $target_uid:$target_gid with 755 permissions"
+            else
+                echo "⚠️ Could not change ownership (possibly read-only filesystem)"
+                if chmod 755 /app/instance 2>/dev/null; then
+                    echo "✅ Set directory permissions to 755"
+                else
+                    echo "ℹ️ Directory permissions unchanged (read-only filesystem)"
+                fi
+            fi
             
             # Handle existing database file
             if [ -f "/app/instance/subscriptions.db" ]; then
@@ -436,8 +503,8 @@ except Exception as e:
 
 # Main execution
 main() {
-    echo "Starting Subscription Tracker..."
-    echo "Running as user: $(id -u):$(id -g)"
+    echo "🚀 Starting Subscription Tracker..."
+    echo "Initial user: $(id -u):$(id -g)"
     
     # Handle PUID/GUID mapping first
     setup_user_mapping
@@ -449,14 +516,21 @@ main() {
     # Initialize database with proper permissions
     init_database "$@"
     
-    # Drop privileges if running as root, otherwise run directly
-    if should_drop_privileges; then
-        echo "Dropping privileges to ${APP_USER}:${APP_GROUP}"
+    # Determine execution method based on current state
+    if is_user_directive; then
+        echo "👤 User directive mode: Running directly as $(id -u):$(id -g)"
+        # Start validation in background
+        (sleep 5 && validate_database "$@") &
+        exec "$@"
+        
+    elif should_drop_privileges; then
+        echo "🔽 Dropping privileges to ${APP_USER}:${APP_GROUP}"
         # Start validation in background
         (sleep 5 && validate_database "$@") &
         exec gosu ${APP_USER}:${APP_GROUP} "$@"
+        
     else
-        echo "Running with current user privileges"
+        echo "▶️ Running with current user privileges $(id -u):$(id -g)"
         # Start validation in background
         (sleep 5 && validate_database "$@") &
         exec "$@"
