@@ -213,10 +213,6 @@ services:
    - **⚠️ Change the default password immediately!**
    - Only admins can create new user accounts
 
-### Database Migration
-
-When switching from SQLite to PostgreSQL/MariaDB, you'll start with a fresh database. The application will automatically create the necessary tables on first startup. If you need to migrate existing data, you'll need to export/import your data manually.
-
 ### Building from Source
 
 If you're building the Docker image from source, the multi-stage build process will automatically handle database driver compilation:
@@ -595,6 +591,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
