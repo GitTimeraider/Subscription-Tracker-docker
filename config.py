@@ -23,13 +23,16 @@ class Config:
                 }
             }
         elif 'postgresql' in database_url.lower() or 'postgres' in database_url.lower():
-            # PostgreSQL-specific settings
+            # PostgreSQL-specific settings (psycopg3 compatible)
             return {
                 'pool_size': 10,
                 'max_overflow': 20,
                 'pool_timeout': 30,
                 'pool_recycle': 3600,
-                'pool_pre_ping': True
+                'pool_pre_ping': True,
+                'connect_args': {
+                    'connect_timeout': 10
+                }
             }
         elif 'mysql' in database_url.lower() or 'mariadb' in database_url.lower():
             # MySQL/MariaDB-specific settings

@@ -7,9 +7,10 @@ WORKDIR /app
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		build-essential \
-		libpq-dev \
 		default-libmysqlclient-dev \
 		pkg-config \
+		gcc \
+		python3-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -25,7 +26,6 @@ WORKDIR /app
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		gosu \
-		libpq5 \
 		default-mysql-client \
 	&& rm -rf /var/lib/apt/lists/*
 
