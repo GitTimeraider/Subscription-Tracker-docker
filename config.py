@@ -1,59 +1,59 @@
 import os
 from datetime import timedelta
 
+def get_engine_options():
+    """Get database engine options based on DATABASE_URL"""
+    database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
+    
+    if 'sqlite' in database_url.lower():
+        # SQLite-specific settings
+        return {
+            'pool_timeout': 10,
+            'pool_recycle': 3600,
+            'pool_pre_ping': True,
+            'connect_args': {
+                'timeout': 20,
+                'check_same_thread': False
+            }
+        }
+    elif 'postgresql' in database_url.lower() or 'postgres' in database_url.lower():
+        # PostgreSQL-specific settings (psycopg3 compatible)
+        return {
+            'pool_size': 10,
+            'max_overflow': 20,
+            'pool_timeout': 30,
+            'pool_recycle': 3600,
+            'pool_pre_ping': True,
+            'connect_args': {
+                'connect_timeout': 10
+            }
+        }
+    elif 'mysql' in database_url.lower() or 'mariadb' in database_url.lower():
+        # MySQL/MariaDB-specific settings
+        return {
+            'pool_size': 10,
+            'max_overflow': 20,
+            'pool_timeout': 30,
+            'pool_recycle': 3600,
+            'pool_pre_ping': True,
+            'connect_args': {
+                'charset': 'utf8mb4'
+            }
+        }
+    else:
+        # Default settings for other databases
+        return {
+            'pool_timeout': 30,
+            'pool_recycle': 3600,
+            'pool_pre_ping': True
+        }
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'mad-hatter-secret-key-change-me'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Database connection pool settings
-    @classmethod
-    def get_engine_options(cls):
-        database_url = os.environ.get('DATABASE_URL') or 'sqlite:///subscriptions.db'
-        
-        if 'sqlite' in database_url.lower():
-            # SQLite-specific settings
-            return {
-                'pool_timeout': 10,
-                'pool_recycle': 3600,
-                'pool_pre_ping': True,
-                'connect_args': {
-                    'timeout': 20,
-                    'check_same_thread': False
-                }
-            }
-        elif 'postgresql' in database_url.lower() or 'postgres' in database_url.lower():
-            # PostgreSQL-specific settings (psycopg3 compatible)
-            return {
-                'pool_size': 10,
-                'max_overflow': 20,
-                'pool_timeout': 30,
-                'pool_recycle': 3600,
-                'pool_pre_ping': True,
-                'connect_args': {
-                    'connect_timeout': 10
-                }
-            }
-        elif 'mysql' in database_url.lower() or 'mariadb' in database_url.lower():
-            # MySQL/MariaDB-specific settings
-            return {
-                'pool_size': 10,
-                'max_overflow': 20,
-                'pool_timeout': 30,
-                'pool_recycle': 3600,
-                'pool_pre_ping': True,
-                'connect_args': {
-                    'charset': 'utf8mb4'
-                }
-            }
-        else:
-            # Default settings for other databases
-            return {
-                'pool_timeout': 30,
-                'pool_recycle': 3600,
-                'pool_pre_ping': True
-            }
-    
     SQLALCHEMY_ENGINE_OPTIONS = get_engine_options()
 
     # Email configuration

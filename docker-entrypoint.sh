@@ -21,10 +21,10 @@ fi
 if id -u ${APP_USER} >/dev/null 2>&1; then
     EXISTING_UID=$(id -u ${APP_USER})
     if [ "$EXISTING_UID" != "$PUID" ]; then
-        usermod -o -u "$PUID" ${APP_USER} || true
+        usermod -o -u "$PUID" ${APP_USER} 2>/dev/null || true
     fi
 else
-    useradd -o -m -u "$PUID" -g "$PGID" -s /bin/bash ${APP_USER}
+    useradd -o -m -u "$PUID" -g "$PGID" -s /bin/bash ${APP_USER} 2>/dev/null || true
 fi
 
 # Ensure instance and other writable dirs exist & permissions
