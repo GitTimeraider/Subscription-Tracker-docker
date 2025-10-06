@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from flask import current_app
 import xml.etree.ElementTree as ET
 from decimal import Decimal, getcontext, InvalidOperation
@@ -60,7 +60,7 @@ class CurrencyConverter:
         if not force_refresh and primary_provider:
             record = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=primary_provider).first()
             if record:
-                age_min = (datetime.utcnow() - record.created_at).total_seconds() / 60.0
+                age_min = (datetime.now(timezone.utc) - record.created_at).total_seconds() / 60.0
                 if age_min <= refresh_minutes:
                     try:
                         self.last_provider = primary_provider
@@ -79,7 +79,7 @@ class CurrencyConverter:
                 if not force_refresh:
                     cached = ExchangeRate.query.filter_by(date=date.today(), base_currency=base_currency, provider=provider).first()
                     if cached:
-                        age_min = (datetime.utcnow() - cached.created_at).total_seconds() / 60.0
+                        age_min = (datetime.now(timezone.utc) - cached.created_at).total_seconds() / 60.0
                         if age_min <= refresh_minutes:
                             try:
                                 self.last_provider = provider

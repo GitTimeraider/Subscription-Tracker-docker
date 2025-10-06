@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
@@ -62,7 +62,7 @@ class Webhook(db.Model):
     custom_headers = db.Column(db.Text)  # JSON string for custom headers
     is_active = db.Column(db.Boolean, default=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_used = db.Column(db.DateTime)
     
     # Relationship
@@ -106,7 +106,7 @@ class ExchangeRate(db.Model):
     base_currency = db.Column(db.String(3), nullable=False, default='EUR')
     provider = db.Column(db.String(40), nullable=False, default='legacy')  # data source identifier
     rates_json = db.Column(db.Text, nullable=False)  # JSON string of exchange rates
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         db.UniqueConstraint('date', 'base_currency', 'provider', name='uq_rate_date_base_provider'),
@@ -136,7 +136,7 @@ class ExchangeRate(db.Model):
         existing_rate = cls.query.filter_by(date=today, base_currency=base_currency, provider=provider).first()
         if existing_rate:
             existing_rate.rates_json = json.dumps(rates)
-            existing_rate.created_at = datetime.utcnow()
+            existing_rate.created_at = datetime.now(timezone.utc)
         else:
             new_rate = cls(
                 date=today,
@@ -154,7 +154,7 @@ class PaymentMethod(db.Model):
     last_four = db.Column(db.String(4), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationship back to user
     user = db.relationship('User', backref=db.backref('payment_methods', lazy=True))
