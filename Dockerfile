@@ -8,6 +8,7 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		build-essential \
 		default-libmysqlclient-dev \
+		libpq-dev \
 		pkg-config \
 		gcc \
 		python3-dev \
@@ -27,6 +28,7 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		gosu \
 		default-mysql-client \
+		libpq5 \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder stage
