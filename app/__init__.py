@@ -281,27 +281,54 @@ def create_app():
     app.register_blueprint(main)
 
     with app.app_context():
+        # Check database write permissions before proceeding
+        try:
+            from sqlalchemy import text
+            # Test database connectivity and write permissions
+            with db.engine.connect() as conn:
+                # Try a simple write operation to test permissions
+                conn.execute(text('CREATE TABLE IF NOT EXISTS permission_test (id INTEGER)'))
+                conn.execute(text('DROP TABLE IF EXISTS permission_test'))
+                conn.commit()
+                print("✅ Database write permissions verified")
+        except Exception as e:
+            print(f"❌ Database permission error: {e}")
+            print("🔧 Please check database file permissions:")
+            print("   - sudo chown -R 1000:1000 ./data")
+            print("   - chmod 755 ./data")
+            print("   - chmod 664 ./data/subscriptions.db (if exists)")
+            # Don't exit, continue trying to initialize
+        
         # Run automatic database migrations before creating tables
         migrate_database()
         
-        db.create_all()
+        try:
+            db.create_all()
+            print("✅ Database tables created/verified")
+        except Exception as e:
+            print(f"❌ Failed to create database tables: {e}")
+            raise
 
         # Create default admin user if no admin users exist
-        from app.models import User, UserSettings
-        admin_exists = User.query.filter_by(is_admin=True).first()
-        if not admin_exists:
-            default_user = User(username='admin', email='admin@example.com', is_admin=True)
-            default_user.set_password('changeme')
-            db.session.add(default_user)
-            db.session.commit()
-            
-            # Create default settings for admin user
-            admin_settings = UserSettings(user_id=default_user.id, date_format='eu')
-            db.session.add(admin_settings)
-            db.session.commit()
-            
-            print("Default admin user created: username='admin', password='changeme'")
-            print("Please change the default password immediately!")
+        try:
+            from app.models import User, UserSettings
+            admin_exists = User.query.filter_by(is_admin=True).first()
+            if not admin_exists:
+                default_user = User(username='admin', email='admin@example.com', is_admin=True)
+                default_user.set_password('changeme')
+                db.session.add(default_user)
+                db.session.commit()
+                
+                # Create default settings for admin user
+                admin_settings = UserSettings(user_id=default_user.id, date_format='eu')
+                db.session.add(admin_settings)
+                db.session.commit()
+                
+                print("✅ Default admin user created: username='admin', password='changeme'")
+                print("⚠️ Please change the default password immediately!")
+        except Exception as e:
+            print(f"❌ Failed to create default admin user: {e}")
+            # This is not critical, continue running
 
     # Lazy scheduler + perf timer combined (Flask 3 removed before_first_request)
     @app.before_request
