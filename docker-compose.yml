@@ -23,6 +23,13 @@ services:
       - PERFORMANCE_LOGGING=${PERFORMANCE_LOGGING:-true}
     volumes:
       - ./data:/app/instance
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   postgres:
     image: postgres:15-alpine
@@ -34,6 +41,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-subscription_tracker} -d ${POSTGRES_DB:-subscription_tracker}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     profiles:
       - postgres
     restart: unless-stopped
@@ -49,6 +62,12 @@ services:
       - mariadb_data:/var/lib/mysql
     ports:
       - "${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     profiles:
       - mariadb
     restart: unless-stopped

@@ -29,6 +29,7 @@ RUN apt-get update \
 		gosu \
 		default-mysql-client \
 		libpq5 \
+		curl \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder stage
@@ -43,6 +44,10 @@ RUN chmod +x /app/docker-entrypoint.sh
 ENV FLASK_APP=run.py \
 	PUID=1000 \
 	PGID=1000
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+	CMD curl -f http://localhost:5000/health || exit 1
 
 EXPOSE 5000
 
