@@ -178,3 +178,13 @@ class WebhookForm(FlaskForm):
     def validate_url(self, field):
         if not (field.data.startswith('http://') or field.data.startswith('https://')):
             raise ValidationError('URL must start with http:// or https://')
+        
+        # Enhanced validation using webhook module
+        try:
+            from app.webhooks import validate_webhook_url
+            validation_result = validate_webhook_url(self.webhook_type.data, field.data)
+            if not validation_result['valid']:
+                raise ValidationError(validation_result['message'])
+        except ImportError:
+            # Fallback to basic validation if webhook module isn't available
+            pass

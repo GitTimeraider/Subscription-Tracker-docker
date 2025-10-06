@@ -22,4 +22,11 @@ services:
       - CURRENCY_PROVIDER_PRIORITY=${CURRENCY_PROVIDER_PRIORITY:-frankfurter,floatrates,erapi_open}
       - PERFORMANCE_LOGGING=${PERFORMANCE_LOGGING:-true}
     volumes:
-      - YOURDATAFOLDER:/app/instance
+      - YOURDATAVOLUME:/app/instance
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
