@@ -15,7 +15,7 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
 FROM python:3.13-slim
@@ -30,10 +30,8 @@ RUN apt-get update \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder stage
-COPY --from=builder /root/.local /root/.local
-
-# Make sure scripts in .local are usable:
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
 
