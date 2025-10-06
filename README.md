@@ -1,5 +1,5 @@
 # 🔔 Subscription Tracker (Dockerized)
-##Disclaimer: AI is probably resposible for over half of the coding. Does that mean it does not work? Ofcourse not. Just an FYI.
+### Disclaimer: AI is probably resposible for over half of the coding. Does that mean it does not work? Ofcourse not. Just an FYI.
 <p align="center">
   <img src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/icon_sub.png" />
 </p>
@@ -520,6 +520,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
 
 
