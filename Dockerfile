@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.13-slim as builder
+FROM python:3.14-slim as builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
@@ -39,8 +39,8 @@ RUN groupadd -r -g 1000 appgroup \
 	&& mkdir -p /app/instance \
 	&& chown -R appuser:appgroup /app
 
-# Copy installed packages from builder stage
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+# Copy installed packages from builder stage (version-agnostic)
+COPY --from=builder /usr/local/lib/ /usr/local/lib/
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application files and set ownership
