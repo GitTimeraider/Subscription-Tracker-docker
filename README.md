@@ -1,4 +1,4 @@
-# 🔔 Subscription Tracker (Dockerized)
+# Subscription Tracker (Dockerized)
 <p align="center">
   <img src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/icon_sub.png" />
 </p>
@@ -14,16 +14,16 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 </p>
 
 
-## ✨ Features
+## Features
 
-### 🔐 **Multi-User System with Admin Controls**
+### **[Security] Multi-User System with Admin Controls**
 - Secure multi-user environment with role-based access control
 - **Admin Users**: Can manage all users, create new accounts, and access admin settings
 - **Standard Users**: Can only manage their own subscriptions and settings
 - No public registration - only admins can create new user accounts
 - Individual user accounts with personalized settings and isolated data
 
-### 📊 **Comprehensive Subscription Management**
+### **[Core] Comprehensive Subscription Management**
 - Add, edit, and remove subscriptions with ease
 - Support for multiple categories: Software, Hardware, Entertainment, Utilities, Cloud Services, News & Media, Education, Fitness, Gaming, and more
 - Detailed subscription information including notes
@@ -33,7 +33,7 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 </p>
 
 
-### 💰 **Flexible Billing Cycles**
+### **[Billing] Flexible Billing Cycles**
 - **Daily** - Perfect for daily service charges
 - **Weekly** - For weekly subscriptions
 - **Bi-weekly** - Every 2 weeks
@@ -44,28 +44,28 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 - **Yearly** - Annual subscriptions
 - **Custom** - Define your own billing period (every 5 years? Why not!)
 
-### 📧 **Smart Email Notifications**
+### **[Notifications] Smart Email Notifications**
 - Get notified before subscriptions expire
 - Customizable notification timing (1-365 days before expiry)
 - Rich HTML email format with urgency indicators
 - Multiple daily checks to ensure timely notifications
 - User-specific notification preferences
 
-### 📈 **Analytics & Insights**
+### **[Analytics] Analytics & Insights**
 - Cost tracking with monthly and yearly projections
 - Category-based spending breakdown
 - Interactive charts and visualizations
 - Upcoming renewals dashboard
 - Billing cycle distribution analysis
 
-### 💹 **Accurate Multi-Currency Conversion**
+### **[Currency] Accurate Multi-Currency Conversion**
 - Per-user preferred display currency (defaults to EUR)
 - High-precision Decimal math (no floating point drift)
 - Multi-provider live EUR base exchange rates with automatic fallback
 - Cached daily (per provider) with manual refresh & force-refetch
 - Transparent attempt chain + active provider/mismatch badges in settings & dashboard
 
-### ⚙️ **Powerful Settings**
+### **[Configuration] Powerful Settings**
 - **User Settings**: Change username, email, and password
 - **Notification Settings**: Configure email preferences, timing, and timezone
 - **General Settings**: Preferred currency, theme, accent color, date format, and exchange rate provider
@@ -80,7 +80,7 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 </p>
 
 
-### 🎨 **Beautiful Interface**
+### **[UI/UX] Beautiful Interface**
 - Modern, responsive design using Bootstrap 5
 - Intuitive navigation and user experience
 - Mobile-friendly layout with configurable date formatting (DD/MM/YYYY or MM/DD/YYYY)
@@ -92,12 +92,12 @@ Welcome to the most wonderfully comprehensive and dockerized way to track your s
 </p>
 
 
-### 🐳 **Docker Support**
+### **[Deployment] Docker Support**
 - Easy deployment with Docker
 - Pre-built images available on GitHub Container Registry
 - Environment variable configuration
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Database Options
 
@@ -158,7 +158,7 @@ services:
 4. **Access the application:**
    - Navigate to `http://localhost:5000`
    - Default admin credentials: `admin` / `changeme`
-   - **⚠️ Change the default password immediately!**
+   - **[IMPORTANT] Change the default password immediately!**
    - Only admins can create new user accounts
 
 ### Building from Source
@@ -284,13 +284,13 @@ MAIL_PASSWORD=your-password
 MAIL_FROM=your-email@outlook.com
 ```
 
-## 📱 Usage Guide
+## Usage Guide
 
 ### First Time Setup
 
 1. **Access the application** at `http://localhost:5000`
 2. **Login** with default admin credentials: `admin` / `changeme`
-3. **⚠️ Immediately change the default password** in User Settings
+3. **[IMPORTANT] Immediately change the default password** in User Settings
 4. **Create user accounts** (admin only):
    - Go to Settings → Admin Settings → Users
    - Click "Add User" to create new accounts
@@ -328,12 +328,12 @@ MAIL_FROM=your-email@outlook.com
 
 ### Managing Subscriptions
 
-- **👀 View**: All subscriptions displayed on dashboard with filtering and sorting options
-- **✏️ Edit**: Click "Edit" to modify subscription details
-- **🔄 Toggle**: Activate/deactivate subscriptions without deleting
-- **🗑️ Delete**: Remove subscriptions with confirmation
-- **🔍 Filter**: By category, status, or expiration timeline
-- **📊 Sort**: Click column headers or use dropdown to sort by:
+- **View**: All subscriptions displayed on dashboard with filtering and sorting options
+- **Edit**: Click "Edit" to modify subscription details
+- **Toggle**: Activate/deactivate subscriptions without deleting
+- **Delete**: Remove subscriptions with confirmation
+- **Filter**: By category, status, or expiration timeline
+- **Sort**: Click column headers or use dropdown to sort by:
   - **Name** (A-Z or Z-A)
   - **Company** (A-Z or Z-A) 
   - **Category** (A-Z or Z-A)
@@ -380,7 +380,7 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 - If totals look stale, click Refresh Rates; check attempt chain for failures.
 - To test fallback, temporarily set an invalid provider order in `CURRENCY_PROVIDER_PRIORITY` and observe the chain (not recommended in production).
 
-## 👥 Multi-User System
+## Multi-User System
 
 ### User Roles
 
@@ -407,7 +407,7 @@ Behind the scenes, each subscription’s native currency is normalized via EUR b
 On first startup, if no admin users exist, the system creates:
 - **Username:** `admin`
 - **Password:** `changeme`
-- **⚠️ Change this password immediately after first login!**
+- **[IMPORTANT] Change this password immediately after first login!**
 
 ### User Management
 
@@ -417,12 +417,12 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 - Edit user details and roles
 - Delete users (with safety restrictions)
 
-## 🔒 Security Considerations
+## Security Considerations
 
-- **🚨 Change the default admin password immediately** after first login (`admin` / `changeme`)
-- **👥 User Access Control**: Only admins can create new user accounts
-- **🔐 Data Isolation**: Users can only access their own subscriptions and settings
-- **🛡️ Admin Protections**: 
+- **[CRITICAL] Change the default admin password immediately** after first login (`admin` / `changeme`)
+- **[Access Control] User Access Control**: Only admins can create new user accounts
+- **[Data Protection] Data Isolation**: Users can only access their own subscriptions and settings
+- **[Admin Safety] Admin Protections**: 
   - Admins cannot delete themselves while logged in
   - System prevents deletion of the last admin user
   - Cannot remove admin privileges from the last admin
@@ -432,7 +432,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 - Keep your environment variables secure and never commit them to version control
 - Regularly review user accounts and remove unused ones
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Email Notifications Not Working
 1. **Use the Test Email feature**: Go to Settings → Notification Settings and click "Send Test Email"
@@ -447,7 +447,7 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 
 #### SQLite Issues
 1. Stop the application
-2. Delete `subscriptions.db` (⚠️ this will delete all data)
+2. Delete `subscriptions.db` (**WARNING:** this will delete all data)
 3. Restart the application to recreate the database
 
 #### PostgreSQL Connection Issues
@@ -518,9 +518,9 @@ Admins can manage users through **Settings → Admin Settings → Users**:
 1. Stop the container
 2. Delete the database file: `rm ./data/subscriptions.db`
 3. Restart the container (this will recreate the default admin account)
-4. **⚠️ Warning: This deletes ALL data including all users and subscriptions**
+4. **[WARNING] This deletes ALL data including all users and subscriptions**
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
