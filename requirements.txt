@@ -9,7 +9,7 @@ APScheduler==3.11.2
 gunicorn==25.1.0
 Werkzeug==3.1.6
 gunicorn==25.1.0
-Werkzeug==3.1.5
+Werkzeug==3.1.6
 requests==2.32.5
 
 # Database drivers
