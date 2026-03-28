@@ -2,7 +2,9 @@ import smtplib
 import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from contextlib import nullcontext
 from datetime import datetime, timedelta
+from flask import has_app_context
 from app.models import Subscription, User, UserSettings
 from app import db
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -137,7 +139,10 @@ def create_email_body(user, subscriptions):
 
 def send_expiry_notification(app, user, subscriptions):
     """Send email notification for expiring subscriptions"""
-    with app.app_context():
+    # Avoid pushing a nested app context when called from check_expiring_subscriptions;
+    # nested context teardown removes the shared scoped SQLAlchemy session, breaking the caller.
+    ctx = nullcontext() if has_app_context() else app.app_context()
+    with ctx:
         # Check email configuration
         if not all([app.config['MAIL_SERVER'], app.config['MAIL_USERNAME'], 
                    app.config['MAIL_PASSWORD']]):
@@ -287,8 +292,12 @@ def check_expiring_subscriptions_with_timeout(app):
 def check_expiring_subscriptions(app):
     """Check for expiring subscriptions and send notifications"""
     with app.app_context():
+        # Ensure a clean database session to prevent stale cached data from previous scheduler runs
+        db.session.remove()
+
         current_time = datetime.now()
         current_hour = current_time.hour
+        today = current_time.date()
         print(f"🔍 Checking expiring subscriptions at {current_time} (hour: {current_hour})")
         
         # Get all users with notification settings
@@ -296,6 +305,7 @@ def check_expiring_subscriptions(app):
         total_notifications = 0
         
         for user in users:
+          try:
             user_settings = user.settings or UserSettings()
             
             # Skip if user has disabled ALL notifications
@@ -303,8 +313,6 @@ def check_expiring_subscriptions(app):
                 print(f"⏭️  Skipping {user.username} - all notifications disabled")
                 continue
             
-            # Double-check if we already sent a notification today for this user (database level check)
-            today = current_time.date()
             # Refresh user_settings from database to get latest value
             if user.settings:
                 db.session.refresh(user.settings)
@@ -389,8 +397,15 @@ def check_expiring_subscriptions(app):
                     print(f"❌ All notification methods failed for {user.username}, will retry later")
             else:
                 print(f"✅ No expiring subscriptions for {user.username}")
+          except Exception as e:
+            print(f"❌ Error processing notifications for user {user.username}: {e}")
+            db.session.rollback()
+            continue
         
         print(f"📊 Notification check completed. Sent {total_notifications} notifications.")
+
+        # Clean up session to prevent stale data on next scheduler run
+        db.session.remove()
 
 def start_scheduler(app):
     """Start the background scheduler for checking expiring subscriptions"""
