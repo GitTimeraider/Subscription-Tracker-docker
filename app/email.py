@@ -360,38 +360,39 @@ def check_expiring_subscriptions(app):
                 user_settings.last_notification_sent = today
                 db.session.commit()
                 
+                # Track whether at least one notification was actually delivered
+                notification_sent = False
+
                 # Send email notification if enabled
-                email_success = True
                 if user_settings.email_notifications:
                     email_success = send_expiry_notification(app, user, expiring_subscriptions)
                     if email_success:
                         print(f"✅ Email notification sent to {user.username}")
+                        notification_sent = True
                     else:
                         print(f"❌ Failed to send email notification to {user.username}")
                 
                 # Send webhook notifications if enabled
-                webhook_success = True
                 if user_settings.webhook_notifications:
                     try:
                         from app.webhooks import send_all_webhook_notifications
                         webhook_count = send_all_webhook_notifications(app, user, expiring_subscriptions)
                         if webhook_count > 0:
                             print(f"✅ {webhook_count} webhook notification(s) sent to {user.username}")
+                            notification_sent = True
                         else:
                             print(f"⚠️ No active webhooks configured for {user.username}")
                     except ImportError as e:
                         print(f"❌ Webhook module not available: {e}")
-                        webhook_success = False
                     except Exception as e:
                         print(f"❌ Failed to send webhook notifications to {user.username}: {e}")
-                        webhook_success = False
                 
-                # Consider the notification successful if at least one method worked
-                if email_success or webhook_success:
+                # Only mark as sent if at least one method actually delivered a notification
+                if notification_sent:
                     total_notifications += 1
                     print(f"✅ Notification successfully sent and marked as sent for {user.username}")
                 else:
-                    # If both email and webhook failed, remove the notification flag so it can be retried later
+                    # Reset the flag so the next scheduler run will retry
                     user_settings.last_notification_sent = None
                     db.session.commit()
                     print(f"❌ All notification methods failed for {user.username}, will retry later")
