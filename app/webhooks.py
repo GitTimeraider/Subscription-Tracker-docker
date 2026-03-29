@@ -328,7 +328,12 @@ def send_all_webhook_notifications(app, user, expiring_subscriptions) -> int:
     if not expiring_subscriptions:
         return 0
     
-    with app.app_context():
+    # Avoid pushing a nested app context when called from check_expiring_subscriptions;
+    # nested context teardown removes the shared scoped SQLAlchemy session, breaking the caller.
+    from flask import has_app_context
+    from contextlib import nullcontext
+    ctx = nullcontext() if has_app_context() else app.app_context()
+    with ctx:
         try:
             from app.models import Webhook
             

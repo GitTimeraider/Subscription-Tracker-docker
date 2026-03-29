@@ -5,7 +5,11 @@ bind = "0.0.0.0:5000"
 backlog = 2048
 
 # Worker processes
-workers = 3  # Increased from 2 to 3 for better load distribution
+# NOTE: Only 1 worker is used to avoid multiple background schedulers running in parallel.
+# APScheduler runs in-process threads; with multiple workers each would start its own
+# scheduler causing duplicate notifications. If you need more throughput, consider an
+# external task queue (e.g. Celery + Redis) and re-enable multiple workers then.
+workers = 1
 worker_class = "sync"
 worker_connections = 1000
 timeout = 120  # Increased from 60s to 120s for longer operations
