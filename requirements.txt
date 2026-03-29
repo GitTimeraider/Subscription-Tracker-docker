@@ -10,7 +10,7 @@ gunicorn==25.1.0
 Werkzeug==3.1.6
 gunicorn==25.1.0
 Werkzeug==3.1.6
-requests==2.32.5
+requests==2.33.0
 
 # Database drivers
 psycopg[binary,pool]==3.3.3
