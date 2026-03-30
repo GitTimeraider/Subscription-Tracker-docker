@@ -3,7 +3,8 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from contextlib import nullcontext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import has_app_context
 from app.models import Subscription, User, UserSettings
 from app import db
@@ -295,10 +296,8 @@ def check_expiring_subscriptions(app):
         # Ensure a clean database session to prevent stale cached data from previous scheduler runs
         db.session.remove()
 
-        current_time = datetime.now()
-        current_hour = current_time.hour
-        today = current_time.date()
-        print(f"🔍 Checking expiring subscriptions at {current_time} (hour: {current_hour})")
+        current_time_utc = datetime.now(tz=timezone.utc)
+        print(f"🔍 Checking expiring subscriptions at {current_time_utc} (UTC)")
         
         # Get all users with notification settings
         users = User.query.all()
@@ -317,15 +316,30 @@ def check_expiring_subscriptions(app):
             if user.settings:
                 db.session.refresh(user.settings)
                 user_settings = user.settings
-            
+
+            # Resolve current time and today's date in the user's own timezone so that
+            # notification_time comparisons and last_notification_sent checks are correct
+            # even when the server runs in UTC (e.g. inside a Docker container).
+            user_tz_str = (getattr(user_settings, 'timezone', None) or 'UTC').strip()
+            try:
+                user_tz = ZoneInfo(user_tz_str)
+            except (ZoneInfoNotFoundError, KeyError):
+                user_tz = ZoneInfo('UTC')
+
+            user_local_time = current_time_utc.astimezone(user_tz)
+            current_hour = user_local_time.hour
+            today = user_local_time.date()
+
             if user_settings.last_notification_sent == today:
                 print(f"⏭️  Skipping {user.username} - already notified today (last sent: {user_settings.last_notification_sent})")
                 continue
             
-            # Check if it's the user's preferred notification time (±1 hour window)
+            # Check if it's the user's preferred notification time (±1 hour window).
+            # Use circular distance to handle midnight wrap-around correctly.
             preferred_hour = user_settings.notification_time or 9
-            if not (preferred_hour - 1 <= current_hour <= preferred_hour + 1):
-                print(f"⏭️  Skipping {user.username} - not their notification time (prefers {preferred_hour}:00, current: {current_hour}:00)")
+            hour_diff = min(abs(current_hour - preferred_hour), 24 - abs(current_hour - preferred_hour))
+            if hour_diff > 1:
+                print(f"⏭️  Skipping {user.username} - not their notification time (prefers {preferred_hour}:00, current local: {current_hour}:00 {user_tz_str})")
                 continue
 
             # Find subscriptions expiring based on their individual or default notification days
