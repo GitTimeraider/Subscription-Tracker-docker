@@ -346,14 +346,13 @@ def create_app():
         if hasattr(db.engine, 'pool') and hasattr(db.engine.pool, '_timeout'):
             db.engine.pool._timeout = 30  # 30 second timeout for database operations
 
-        # Only start scheduler after a non-auth (post-login) request to reduce cold-login latency
-        if not getattr(app, '_scheduler_started', False):
+        # Fallback: start scheduler here when running via `python run.py` (dev mode).
+        # Under gunicorn the post_fork hook handles this before any requests arrive.
+        if not getattr(app, '_scheduler_started', False) and not getattr(app, '_notification_scheduler', None):
             try:
-                from flask_login import current_user
-                if current_user.is_authenticated:
-                    from app.email import start_scheduler
-                    start_scheduler(app)
-                    app._scheduler_started = True
+                from app.email import start_scheduler
+                start_scheduler(app)
+                app._scheduler_started = True
             except Exception as e:
                 app.logger.error(f"Failed to start scheduler: {e}")
 

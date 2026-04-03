@@ -63,8 +63,8 @@ services:
       - /etc/group:/etc/group:ro    # Optional: for group resolution
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:5000/health"]
+      interval: 5m
       timeout: 10s
       retries: 3
       start_period: 40s

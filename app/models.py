@@ -274,8 +274,18 @@ class Subscription(db.Model):
         return delta.days if delta.days >= 0 else 0
 
     def get_notification_days(self, user_settings):
-        """Get effective notification days for this subscription (custom or user default)"""
-        return self.custom_notification_days if self.custom_notification_days is not None else user_settings.notification_days
+        """Get effective notification days for this subscription (custom or user default).
+
+        Falls back to 7 when both the per-subscription override and the user
+        setting are None (e.g. legacy database rows created before the column
+        was added with a default value).
+        """
+        days = (
+            self.custom_notification_days
+            if self.custom_notification_days is not None
+            else user_settings.notification_days
+        )
+        return days if days is not None else 7
 
     def get_monthly_cost_in_currency(self, target_currency):
         """Get monthly cost converted to target currency using currency converter with timeout protection"""

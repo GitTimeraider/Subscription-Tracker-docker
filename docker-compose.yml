@@ -7,8 +7,11 @@ services:
       - "5000:5000"
     environment:
       # Custom User/Group IDs (optional)
+      # Supports both PGID (Linuxserver.io convention) and legacy GUID.
+      # Aliasing is handled inside the entrypoint script (bash nested expansion).
       - PUID=${PUID:-1000}
       - GUID=${GUID:-1000}
+      - PGID=${PGID:-}
       # Application configuration
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///subscriptions.db}
@@ -26,8 +29,8 @@ services:
     volumes:
       - ./data:/app/instance
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:5000/health"]
+      interval: 5m
       timeout: 10s
       retries: 3
       start_period: 40s
