@@ -53,6 +53,27 @@ tmp_upload_dir = None
 # which causes a harmless but noisy permission error on every start.
 control_socket_disable = True
 
+
+def post_fork(server, worker):
+    """Start the APScheduler notification scheduler inside the worker process.
+
+    With preload_app=True the Flask app is loaded in the master process before
+    fork(). Background threads don't survive fork(), so starting the scheduler
+    here (in the worker) ensures it runs reliably on every container start
+    without waiting for the first authenticated HTTP request.
+    """
+    try:
+        from run import app
+        from app.email import start_scheduler
+        start_scheduler(app)
+        app._scheduler_started = True
+    except Exception as e:
+        import logging
+        logging.getLogger('gunicorn.error').warning(
+            f'Could not start notification scheduler in post_fork: {e}'
+        )
+
+
 # SSL
 keyfile = None
 certfile = None
