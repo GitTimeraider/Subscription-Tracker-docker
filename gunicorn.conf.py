@@ -1,4 +1,17 @@
 # Gunicorn configuration file
+import logging
+
+
+class HealthCheckFilter(logging.Filter):
+    """Suppress access log entries for the /health endpoint."""
+    def filter(self, record):
+        return '/health' not in record.getMessage()
+
+
+# Attach the filter to gunicorn's access logger on startup
+def on_starting(server):
+    logging.getLogger('gunicorn.access').addFilter(HealthCheckFilter())
+
 
 # Server socket
 bind = "0.0.0.0:5000"
