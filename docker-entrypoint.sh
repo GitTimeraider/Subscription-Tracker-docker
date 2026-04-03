@@ -5,8 +5,10 @@ set -e
 # Supports both build-time users and runtime PUID/GUID configuration
 
 # PUID/GUID support (legacy compatibility)
+# Accepts PGID (Linuxserver.io / Unraid convention) as an alias for GUID.
+# Bash nested expansion is used here because docker-compose does not evaluate nested ${VAR:-fallback} forms.
 PUID=${PUID:-1000}
-GUID=${GUID:-1000}
+GUID=${PGID:-${GUID:-1000}}
 
 # Build-time user/group names (for security hardening)
 APP_USER=${USER:-appuser}
