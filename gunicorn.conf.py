@@ -48,6 +48,11 @@ user = None
 group = None
 tmp_upload_dir = None
 
+# Control socket (gunicorn 25+)
+# Default path falls back to $HOME/.gunicorn/ — user 99 (nobody) has HOME=/
+# which causes a harmless but noisy permission error on every start.
+control_socket_disable = True
+
 # SSL
 keyfile = None
 certfile = None
