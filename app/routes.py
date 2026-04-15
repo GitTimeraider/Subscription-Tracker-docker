@@ -547,7 +547,8 @@ def analytics():
         defaults = ['frankfurter','floatrates','erapi_open']
         priority = [user_settings.preferred_rate_provider] + [p for p in defaults if p != user_settings.preferred_rate_provider]
         os.environ['CURRENCY_PROVIDER_PRIORITY'] = ','.join(priority)
-    active_subs = [s for s in subscriptions if s.is_active]
+    today = date.today()
+    active_subs = [s for s in subscriptions if s.is_active and (not s.end_date or s.end_date >= today)]
     total_monthly = sum(sub.get_monthly_cost_in_currency(display_currency) for sub in active_subs)
     total_yearly = sum(sub.get_yearly_cost_in_currency(display_currency) for sub in active_subs)
     category_costs = {}
