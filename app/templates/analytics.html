@@ -191,7 +191,12 @@
     // Get data from the JSON script tag
     const chartData = JSON.parse(document.getElementById('chart-data').textContent);
     const currencySymbol = chartData.currencySymbol;
-    
+
+    // Read theme-aware colors from CSS variables
+    const rootStyle = getComputedStyle(document.documentElement);
+    const chartTextColor = rootStyle.getPropertyValue('--text-color').trim() || '#ffffff';
+    const chartMutedColor = rootStyle.getPropertyValue('--text-muted').trim() || '#aaaaaa';
+
     // Category Chart
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
     const categoryData = chartData.categoryData;
@@ -219,7 +224,10 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        position: 'bottom',
+                        labels: {
+                            color: chartTextColor
+                        }
                     }
                 }
             }
@@ -229,7 +237,7 @@
         const ctx = categoryCtx;
         ctx.font = '16px Arial';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#6c757d';
+        ctx.fillStyle = chartMutedColor;
         ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
     }
 
@@ -258,9 +266,15 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
+                    x: {
+                        ticks: {
+                            color: chartTextColor
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            color: chartTextColor,
                             callback: function(value) {
                                 return currencySymbol + value.toFixed(2);
                             }
@@ -279,7 +293,7 @@
         const ctx = cycleCtx;
         ctx.font = '16px Arial';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#6c757d';
+        ctx.fillStyle = chartMutedColor;
         ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
     }
 </script>

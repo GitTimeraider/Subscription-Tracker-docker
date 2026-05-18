@@ -312,6 +312,11 @@
             text-decoration: underline;
         }
         
+        /* Override Bootstrap's .text-muted to respect theme */
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 padding: 1rem 0;
