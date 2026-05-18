@@ -7,7 +7,7 @@
 #### AI is responsible for over half of the coding. Also keep in mind that this software is mostly developed for personal use by myself and thus might not receive all feature requests desired.
 ################################################################
 
-Welcome to the most wonderfully comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
+Welcome to a comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
 
 <p align="center" width="100%">
     <img width="80%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/dashboard4.jpg">
