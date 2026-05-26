@@ -13,7 +13,6 @@ Welcome to a comprehensive and dockerized way to track your subscriptions and re
     <img width="80%" src="https://github.com/GitTimeraider/Assets/blob/main/Subscription-Tracker-docker/img/dashboard4.jpg">
 </p>
 
-
 ## Features
 
 ### **[Security] Multi-User System with Admin Controls**
