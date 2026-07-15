@@ -111,6 +111,14 @@ def dashboard():
     sort_order = request.args.get('order', 'asc')  # Default ascending order (nearest first)
     
     query = Subscription.query.filter_by(user_id=current_user.id)
+
+    user_settings_for_today = current_user.settings or UserSettings()
+    try:
+        from zoneinfo import ZoneInfo
+        today_for_billing = datetime.now(ZoneInfo(user_settings_for_today.timezone or 'UTC')).date()
+    except Exception:
+        today_for_billing = datetime.now().date()
+
     if category_filter != 'all':
         query = query.filter_by(category=category_filter)
     if status_filter == 'active':
@@ -206,7 +214,7 @@ def dashboard():
     # Handle sorting by next billing date (calculated field)
     if sort_by == 'next_billing_date':
         def next_billing_sort_key(subscription):
-            next_date = subscription.get_next_billing_date()
+            next_date = subscription.get_next_billing_date(today=today_for_billing)
             if next_date is None:
                 # For subscriptions that won't bill again (ended), use a far future date for ascending
                 # or a past date for descending so they appear last or first respectively
@@ -266,7 +274,8 @@ def dashboard():
                          user_currency=display_currency,
                          currency_symbol=currency_symbol,
                          rate_provider=active_provider,
-                         requested_provider=user_settings.preferred_rate_provider)
+                         requested_provider=user_settings.preferred_rate_provider,
+                         today_for_billing=today_for_billing)
 
 @main.route('/add_subscription', methods=['GET', 'POST'])
 @login_required

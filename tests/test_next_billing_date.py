@@ -64,3 +64,9 @@ def test_custom_yearly_leap_day_returns_on_next_leap_year():
     )
 
     assert sub.get_next_billing_date(today=date(2027, 3, 1)) == date(2028, 2, 29)
+
+
+def test_monthly_cycle_from_april_2025_returns_july_2026_on_july_2026_today():
+    sub = _make_subscription(date(2025, 4, 18), "monthly")
+
+    assert sub.get_next_billing_date(today=date(2026, 7, 15)) == date(2026, 7, 18)
