@@ -203,6 +203,22 @@ def dashboard():
             reverse=(sort_order == 'desc')
         )
 
+    # Handle sorting by next billing date (calculated field)
+    if sort_by == 'next_billing_date':
+        def next_billing_sort_key(subscription):
+            next_date = subscription.get_next_billing_date()
+            if next_date is None:
+                # For subscriptions that won't bill again (ended), use a far future date for ascending
+                # or a past date for descending so they appear last or first respectively
+                from datetime import date
+                return date(9999, 12, 31) if sort_order == 'asc' else date(1900, 1, 1)
+            return next_date
+        
+        subscriptions.sort(
+            key=next_billing_sort_key,
+            reverse=(sort_order == 'desc')
+        )
+
     user_settings = current_user.settings or UserSettings()
     display_currency = request.args.get('currency', user_settings.currency)
     

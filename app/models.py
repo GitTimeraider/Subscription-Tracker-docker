@@ -273,6 +273,103 @@ class Subscription(db.Model):
         delta = self.end_date - datetime.now().date()
         return delta.days if delta.days >= 0 else 0
 
+    def get_next_billing_date(self):
+        """Calculate the next billing date based on start_date, billing_cycle, and end_date.
+        
+        Returns the next date when the subscription will charge/renew.
+        If the subscription has already ended, returns None.
+        """
+        from datetime import datetime, timedelta, date
+        
+        today = datetime.now().date()
+        
+        # If subscription hasn't started yet, return the start date
+        if self.start_date > today:
+            return self.start_date
+        
+        # If subscription has already ended, return None
+        if self.end_date and today > self.end_date:
+            return None
+        
+        # Start from the start date and keep advancing until we find the next billing date
+        current_date = self.start_date
+        
+        # Calculate based on billing cycle using simple date arithmetic
+        while current_date <= today:
+            if self.billing_cycle == 'daily':
+                current_date = current_date + timedelta(days=1)
+            elif self.billing_cycle == 'weekly':
+                current_date = current_date + timedelta(weeks=1)
+            elif self.billing_cycle == 'bi-weekly':
+                current_date = current_date + timedelta(weeks=2)
+            elif self.billing_cycle == 'monthly':
+                # Add one month safely
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1)
+            elif self.billing_cycle == 'bi-monthly':
+                # Add two months safely
+                month = current_date.month + 2
+                year = current_date.year
+                if month > 12:
+                    month -= 12
+                    year += 1
+                current_date = current_date.replace(year=year, month=month)
+            elif self.billing_cycle == 'quarterly':
+                # Add three months
+                month = current_date.month + 3
+                year = current_date.year
+                if month > 12:
+                    month -= 12
+                    year += 1
+                current_date = current_date.replace(year=year, month=month)
+            elif self.billing_cycle == 'semi-annually':
+                # Add six months
+                month = current_date.month + 6
+                year = current_date.year
+                if month > 12:
+                    month -= 12
+                    year += 1
+                current_date = current_date.replace(year=year, month=month)
+            elif self.billing_cycle == 'yearly':
+                current_date = current_date.replace(year=current_date.year + 1)
+            elif self.billing_cycle == 'custom':
+                if self.custom_period_value and self.custom_period_type:
+                    if self.custom_period_type == 'days':
+                        current_date = current_date + timedelta(days=self.custom_period_value)
+                    elif self.custom_period_type == 'months':
+                        month = current_date.month + self.custom_period_value
+                        year = current_date.year
+                        while month > 12:
+                            month -= 12
+                            year += 1
+                        current_date = current_date.replace(year=year, month=month)
+                    elif self.custom_period_type == 'years':
+                        current_date = current_date.replace(year=current_date.year + self.custom_period_value)
+                else:
+                    # Fallback for custom_days (deprecated)
+                    if self.custom_days:
+                        current_date = current_date + timedelta(days=self.custom_days)
+                    else:
+                        # If custom period is incomplete, default to monthly
+                        if current_date.month == 12:
+                            current_date = current_date.replace(year=current_date.year + 1, month=1)
+                        else:
+                            current_date = current_date.replace(month=current_date.month + 1)
+            else:
+                # Default to monthly for unknown cycles
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1)
+        
+        # If the calculated next billing date is after the end date, it won't happen
+        if self.end_date and current_date > self.end_date:
+            return None
+        
+        return current_date
+
     def get_notification_days(self, user_settings):
         """Get effective notification days for this subscription (custom or user default).
 

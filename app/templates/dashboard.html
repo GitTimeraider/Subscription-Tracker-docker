@@ -111,6 +111,7 @@
                     <option value="monthly_cost" {{ 'selected' if current_sort == 'monthly_cost' else '' }}>Monthly Cost</option>
                     <option value="start_date" {{ 'selected' if current_sort == 'start_date' else '' }}>Start Date</option>
                     <option value="end_date" {{ 'selected' if current_sort == 'end_date' else '' }}>End Date</option>
+                    <option value="next_billing_date" {{ 'selected' if current_sort == 'next_billing_date' else '' }}>Next Billing Date</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -190,6 +191,14 @@
                                 <i class="fas fa-sort ms-1 text-muted"></i>
                             {% endif %}
                         </th>
+                        <th class="sortable-header" data-sort="next_billing_date">
+                            <i class="fas fa-clock me-1"></i>Next Billing
+                            {% if current_sort == 'next_billing_date' %}
+                                <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }} ms-1 text-primary"></i>
+                            {% else %}
+                                <i class="fas fa-sort ms-1 text-muted"></i>
+                            {% endif %}
+                        </th>
                         <th><i class="fas fa-toggle-on me-1"></i>Status</th>
                         <th><i class="fas fa-cogs me-1"></i>Actions</th>
                     </tr>
@@ -262,6 +271,14 @@
                                 {% endif %}
                             {% else %}
                                 <span class="badge bg-success">Infinite</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set next_bill = sub.get_next_billing_date() %}
+                            {% if next_bill %}
+                                {{ next_bill|user_date }}
+                            {% else %}
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>
