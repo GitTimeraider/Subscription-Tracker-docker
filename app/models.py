@@ -273,15 +273,36 @@ class Subscription(db.Model):
         delta = self.end_date - datetime.now().date()
         return delta.days if delta.days >= 0 else 0
 
-    def get_next_billing_date(self):
+    def get_next_billing_date(self, today=None):
         """Calculate the next billing date based on start_date, billing_cycle, and end_date.
         
         Returns the next date when the subscription will charge/renew.
         If the subscription has already ended, returns None.
         """
-        from datetime import datetime, timedelta, date
+        from datetime import datetime, timedelta
+        import calendar
+
+        def _safe_add_months(source_date, months, anchor_day=None):
+            """Add months with day anchored to the original billing day when provided."""
+            total_month = source_date.month - 1 + months
+            year = source_date.year + total_month // 12
+            month = (total_month % 12) + 1
+            max_day = calendar.monthrange(year, month)[1]
+            day = min(anchor_day if anchor_day is not None else source_date.day, max_day)
+            return source_date.replace(year=year, month=month, day=day)
+
+        def _safe_add_years(source_date, years, anchor_day=None, anchor_month=None):
+            """Add years with optional month/day anchors for leap-year-safe recurrence."""
+            year = source_date.year + years
+            month = anchor_month if anchor_month is not None else source_date.month
+            max_day = calendar.monthrange(year, month)[1]
+            day = min(anchor_day if anchor_day is not None else source_date.day, max_day)
+            return source_date.replace(year=year, month=month, day=day)
+
+        anchor_day = self.start_date.day
+        anchor_month = self.start_date.month
         
-        today = datetime.now().date()
+        today = today or datetime.now().date()
         
         # If subscription hasn't started yet, return the start date
         if self.start_date > today:
@@ -303,66 +324,47 @@ class Subscription(db.Model):
             elif self.billing_cycle == 'bi-weekly':
                 current_date = current_date + timedelta(weeks=2)
             elif self.billing_cycle == 'monthly':
-                # Add one month safely
-                if current_date.month == 12:
-                    current_date = current_date.replace(year=current_date.year + 1, month=1)
-                else:
-                    current_date = current_date.replace(month=current_date.month + 1)
+                current_date = _safe_add_months(current_date, 1, anchor_day=anchor_day)
             elif self.billing_cycle == 'bi-monthly':
-                # Add two months safely
-                month = current_date.month + 2
-                year = current_date.year
-                if month > 12:
-                    month -= 12
-                    year += 1
-                current_date = current_date.replace(year=year, month=month)
+                current_date = _safe_add_months(current_date, 2, anchor_day=anchor_day)
             elif self.billing_cycle == 'quarterly':
-                # Add three months
-                month = current_date.month + 3
-                year = current_date.year
-                if month > 12:
-                    month -= 12
-                    year += 1
-                current_date = current_date.replace(year=year, month=month)
+                current_date = _safe_add_months(current_date, 3, anchor_day=anchor_day)
             elif self.billing_cycle == 'semi-annually':
-                # Add six months
-                month = current_date.month + 6
-                year = current_date.year
-                if month > 12:
-                    month -= 12
-                    year += 1
-                current_date = current_date.replace(year=year, month=month)
+                current_date = _safe_add_months(current_date, 6, anchor_day=anchor_day)
             elif self.billing_cycle == 'yearly':
-                current_date = current_date.replace(year=current_date.year + 1)
+                current_date = _safe_add_years(
+                    current_date,
+                    1,
+                    anchor_day=anchor_day,
+                    anchor_month=anchor_month,
+                )
             elif self.billing_cycle == 'custom':
                 if self.custom_period_value and self.custom_period_type:
                     if self.custom_period_type == 'days':
                         current_date = current_date + timedelta(days=self.custom_period_value)
                     elif self.custom_period_type == 'months':
-                        month = current_date.month + self.custom_period_value
-                        year = current_date.year
-                        while month > 12:
-                            month -= 12
-                            year += 1
-                        current_date = current_date.replace(year=year, month=month)
+                        current_date = _safe_add_months(
+                            current_date,
+                            self.custom_period_value,
+                            anchor_day=anchor_day,
+                        )
                     elif self.custom_period_type == 'years':
-                        current_date = current_date.replace(year=current_date.year + self.custom_period_value)
+                        current_date = _safe_add_years(
+                            current_date,
+                            self.custom_period_value,
+                            anchor_day=anchor_day,
+                            anchor_month=anchor_month,
+                        )
                 else:
                     # Fallback for custom_days (deprecated)
                     if self.custom_days:
                         current_date = current_date + timedelta(days=self.custom_days)
                     else:
                         # If custom period is incomplete, default to monthly
-                        if current_date.month == 12:
-                            current_date = current_date.replace(year=current_date.year + 1, month=1)
-                        else:
-                            current_date = current_date.replace(month=current_date.month + 1)
+                        current_date = _safe_add_months(current_date, 1, anchor_day=anchor_day)
             else:
                 # Default to monthly for unknown cycles
-                if current_date.month == 12:
-                    current_date = current_date.replace(year=current_date.year + 1, month=1)
-                else:
-                    current_date = current_date.replace(month=current_date.month + 1)
+                current_date = _safe_add_months(current_date, 1, anchor_day=anchor_day)
         
         # If the calculated next billing date is after the end date, it won't happen
         if self.end_date and current_date > self.end_date:
