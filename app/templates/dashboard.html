@@ -30,6 +30,10 @@
         min-width: 2.1rem;
     }
 
+        .status-toggle .btn {
+            min-width: 6rem;
+        }
+
     @media (max-width: 1199.98px) {
         .dashboard-table {
             min-width: 980px;
@@ -212,6 +216,8 @@
     </div>
     <div class="card-body">
         <!-- Filters and Sorting -->
+        {% set status_mode = current_status if current_status in ['active', 'inactive', 'expiring'] else 'active' %}
+        <input type="hidden" id="statusFilter" value="{{ status_mode }}">
         <div class="row mb-3">
             <div class="col-12 col-md-6 col-xl-3">
                 <label for="categoryFilter" class="form-label">Filter by Category:</label>
@@ -225,13 +231,30 @@
                 </select>
             </div>
             <div class="col-12 col-md-6 col-xl-3">
-                <label for="statusFilter" class="form-label">Filter by Status:</label>
-                <select id="statusFilter" class="form-select" onchange="applyFilters()">
-                    <option value="all" {{ 'selected' if current_status == 'all' else '' }}>All Subscriptions</option>
-                    <option value="active" {{ 'selected' if current_status == 'active' else '' }}>Active Only</option>
-                    <option value="inactive" {{ 'selected' if current_status == 'inactive' else '' }}>Inactive Only</option>
-                    <option value="expiring" {{ 'selected' if current_status == 'expiring' else '' }}>Expiring Soon</option>
-                </select>
+                <label class="form-label d-block">Subscriptions:</label>
+                <div class="btn-group status-toggle" role="group" aria-label="Filter subscriptions by status">
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'active' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('active')"
+                    >
+                        Active
+                    </button>
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'inactive' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('inactive')"
+                    >
+                        Inactive
+                    </button>
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'expiring' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('expiring')"
+                    >
+                        Expiring
+                    </button>
+                </div>
             </div>
             <div class="col-12 col-md-6 col-xl-3">
                 <label for="sortBy" class="form-label">Sort by:</label>
@@ -331,7 +354,6 @@
                                 <i class="fas fa-sort ms-1 text-muted"></i>
                             {% endif %}
                         </th>
-                        <th><i class="fas fa-toggle-on me-1"></i>Status</th>
                         <th><i class="fas fa-cogs me-1"></i>Actions</th>
                     </tr>
                 </thead>
@@ -413,13 +435,6 @@
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td data-label="Status">
-                            {% if sub.is_active %}
-                                <span class="badge bg-success">Active</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
-                            {% endif %}
-                        </td>
                         <td data-label="Actions" class="actions-cell">
                             <div class="dashboard-actions" role="group" aria-label="Subscription actions">
                                 <a href="{{ url_for('main.edit_subscription', id=sub.id) }}" 
@@ -483,6 +498,11 @@
         window.location.href = url.toString();
     }
 
+    function setStatusFilter(status) {
+        document.getElementById('statusFilter').value = status;
+        applyFilters();
+    }
+
     function applySorting() {
         const sortBy = document.getElementById('sortBy').value;
         const sortOrder = document.getElementById('sortOrder').value;
@@ -492,7 +512,7 @@
         url.searchParams.set('order', sortOrder);
         // Preserve current filters
         const currentCategory = '{{ current_category }}';
-        const currentStatus = '{{ current_status }}';
+        const currentStatus = document.getElementById('statusFilter').value;
         if (currentCategory) url.searchParams.set('category', currentCategory);
         if (currentStatus) url.searchParams.set('status', currentStatus);
         
@@ -524,7 +544,7 @@
                 url.searchParams.set('order', newOrder);
                 // Preserve current filters
                 const currentCategory = '{{ current_category }}';
-                const currentStatus = '{{ current_status }}';
+                const currentStatus = document.getElementById('statusFilter').value;
                 if (currentCategory) url.searchParams.set('category', currentCategory);
                 if (currentStatus) url.searchParams.set('status', currentStatus);
                 

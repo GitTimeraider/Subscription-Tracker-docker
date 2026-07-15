@@ -106,7 +106,7 @@ def sync_theme():
 def dashboard():
     # Get filter parameters
     category_filter = request.args.get('category', 'all')
-    status_filter = request.args.get('status', 'all')
+    status_filter = request.args.get('status', 'active')
     sort_by = request.args.get('sort', 'end_date')  # Default sort by end_date (nearest expiry first)
     sort_order = request.args.get('order', 'asc')  # Default ascending order (nearest first)
     
