@@ -2,7 +2,143 @@
 
 {% block title %}Dashboard - Subscription Tracker{% endblock %}
 
+{% block content_container_class %}container-fluid px-3 px-lg-4 px-xxl-5{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-shell .card-header {
+        gap: 0.75rem;
+    }
+
+    .dashboard-table-wrap {
+        overflow-x: auto;
+        border-radius: 12px;
+    }
+
+    .dashboard-table {
+        min-width: 1120px;
+        margin-bottom: 0;
+    }
+
+    .dashboard-actions {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-actions .btn {
+        min-width: 2.1rem;
+    }
+
+        .status-toggle .btn {
+            min-width: 6rem;
+        }
+
+    @media (max-width: 1199.98px) {
+        .dashboard-table {
+            min-width: 980px;
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        .dashboard-shell .card-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+
+        .dashboard-shell .stats-row > div {
+            margin-bottom: 0.75rem;
+        }
+
+        .dashboard-table-wrap {
+            overflow: visible;
+        }
+
+        .dashboard-table {
+            min-width: 0;
+            border-collapse: separate;
+        }
+
+        .dashboard-table thead {
+            display: none;
+        }
+
+        .dashboard-table tbody,
+        .dashboard-table tr,
+        .dashboard-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .dashboard-table tbody tr {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.85rem 0.95rem;
+            margin-bottom: 0.9rem;
+            box-shadow: 0 4px 16px var(--shadow-color);
+        }
+
+        .dashboard-table tbody tr.table-warning {
+            border-color: rgba(255, 193, 7, 0.7);
+        }
+
+        .dashboard-table tbody td {
+            border: none;
+            border-bottom: 1px dashed var(--border-color);
+            padding: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .dashboard-table tbody td:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .dashboard-table tbody td::before {
+            content: attr(data-label);
+            font-size: 0.78rem;
+            letter-spacing: 0.02em;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            flex: 0 0 42%;
+            max-width: 42%;
+        }
+
+        .dashboard-table tbody td > * {
+            text-align: right;
+            max-width: 58%;
+        }
+
+        .dashboard-table tbody td.actions-cell {
+            justify-content: flex-start;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .dashboard-table tbody td.actions-cell::before {
+            flex: 0 0 auto;
+            max-width: none;
+        }
+
+        .dashboard-table tbody td.actions-cell > * {
+            max-width: none;
+            text-align: left;
+        }
+
+        .dashboard-actions {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="dashboard-shell">
 {% if rate_provider %}
 <div class="alert alert-info py-2 mb-3">
     <i class="fas fa-globe me-1"></i>
@@ -15,8 +151,8 @@
     {% endif %}
 </div>
 {% endif %}
-<div class="row mb-4">
-    <div class="col-md-3">
+<div class="row mb-4 stats-row">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
             <div class="card-body text-center">
                 <h3>{{ currency_symbol }}{{ "%.2f"|format(total_monthly) }}</h3>
@@ -24,7 +160,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
             <div class="card-body text-center">
                 <h3>{{ currency_symbol }}{{ "%.2f"|format(total_yearly) }}</h3>
@@ -32,7 +168,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
             <div class="card-body text-center">
                 <h3>{{ subscriptions|length }}</h3>
@@ -40,7 +176,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
             <div class="card-body text-center">
                 <h3>{{ expiring_soon|length }}</h3>
@@ -80,8 +216,10 @@
     </div>
     <div class="card-body">
         <!-- Filters and Sorting -->
+        {% set status_mode = current_status if current_status in ['active', 'inactive', 'expiring'] else 'active' %}
+        <input type="hidden" id="statusFilter" value="{{ status_mode }}">
         <div class="row mb-3">
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label for="categoryFilter" class="form-label">Filter by Category:</label>
                 <select id="categoryFilter" class="form-select" onchange="applyFilters()">
                     <option value="all" {{ 'selected' if current_category == 'all' else '' }}>All Categories</option>
@@ -92,16 +230,33 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="statusFilter" class="form-label">Filter by Status:</label>
-                <select id="statusFilter" class="form-select" onchange="applyFilters()">
-                    <option value="all" {{ 'selected' if current_status == 'all' else '' }}>All Subscriptions</option>
-                    <option value="active" {{ 'selected' if current_status == 'active' else '' }}>Active Only</option>
-                    <option value="inactive" {{ 'selected' if current_status == 'inactive' else '' }}>Inactive Only</option>
-                    <option value="expiring" {{ 'selected' if current_status == 'expiring' else '' }}>Expiring Soon</option>
-                </select>
+            <div class="col-12 col-md-6 col-xl-3">
+                <label class="form-label d-block">Subscriptions:</label>
+                <div class="btn-group status-toggle" role="group" aria-label="Filter subscriptions by status">
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'active' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('active')"
+                    >
+                        Active
+                    </button>
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'inactive' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('inactive')"
+                    >
+                        Inactive
+                    </button>
+                    <button
+                        type="button"
+                        class="btn {{ 'btn-primary' if status_mode == 'expiring' else 'btn-outline-primary' }}"
+                        onclick="setStatusFilter('expiring')"
+                    >
+                        Expiring
+                    </button>
+                </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label for="sortBy" class="form-label">Sort by:</label>
                 <select id="sortBy" class="form-select" onchange="applySorting()">
                     <option value="name" {{ 'selected' if current_sort == 'name' else '' }}>Name (A-Z)</option>
@@ -111,9 +266,10 @@
                     <option value="monthly_cost" {{ 'selected' if current_sort == 'monthly_cost' else '' }}>Monthly Cost</option>
                     <option value="start_date" {{ 'selected' if current_sort == 'start_date' else '' }}>Start Date</option>
                     <option value="end_date" {{ 'selected' if current_sort == 'end_date' else '' }}>End Date</option>
+                    <option value="next_billing_date" {{ 'selected' if current_sort == 'next_billing_date' else '' }}>Next Billing Date</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label for="sortOrder" class="form-label">Order:</label>
                 <div class="d-flex gap-2">
                     <select id="sortOrder" class="form-select" onchange="applySorting()">
@@ -128,8 +284,8 @@
         </div>
 
         {% if subscriptions %}
-        <div class="table-responsive">
-            <table class="table table-hover">
+        <div class="dashboard-table-wrap">
+            <table class="table table-hover dashboard-table">
                 <thead>
                     <tr>
                         <th class="sortable-header" data-sort="name">
@@ -190,28 +346,35 @@
                                 <i class="fas fa-sort ms-1 text-muted"></i>
                             {% endif %}
                         </th>
-                        <th><i class="fas fa-toggle-on me-1"></i>Status</th>
+                        <th class="sortable-header" data-sort="next_billing_date">
+                            <i class="fas fa-clock me-1"></i>Next Billing
+                            {% if current_sort == 'next_billing_date' %}
+                                <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }} ms-1 text-primary"></i>
+                            {% else %}
+                                <i class="fas fa-sort ms-1 text-muted"></i>
+                            {% endif %}
+                        </th>
                         <th><i class="fas fa-cogs me-1"></i>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for sub in subscriptions %}
                     <tr class="{{ 'table-warning' if sub.is_expiring_soon(7) else '' }}">
-                        <td>
+                        <td data-label="Name">
                             <strong>{{ sub.name }}</strong>
                             {% if sub.notes %}
                                 <i class="fas fa-sticky-note text-muted ms-1" title="{{ sub.notes }}" data-bs-toggle="tooltip"></i>
                             {% endif %}
                         </td>
-                        <td>{{ sub.company }}</td>
-                        <td>
+                        <td data-label="Company">{{ sub.company }}</td>
+                        <td data-label="Category">
                             {% if sub.category %}
                                 <span class="badge bg-secondary">{{ sub.category|replace('_', ' ')|title }}</span>
                             {% else %}
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Cost">
                             {% if sub.currency %}
                                 {% if sub.currency == 'USD' %}${% elif sub.currency == 'EUR' %}€{% elif sub.currency == 'GBP' %}£{% elif sub.currency == 'JPY' %}¥{% else %}{{ sub.currency }} {% endif %}{{ "%.2f"|format(sub.cost) }}
                                 {% if sub.currency != user_currency %}
@@ -221,7 +384,7 @@
                                 ${{ "%.2f"|format(sub.cost) }}
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Payment">
                             {% if sub.payment_method %}
                                 <small class="text-primary">{{ sub.payment_method.name }}</small>
                                 {% if sub.payment_method.last_four %}
@@ -231,7 +394,7 @@
                                 <small class="text-muted">Not set</small>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Cycle">
                             {% if sub.billing_cycle == 'custom' %}
                                 {% if sub.custom_period_value and sub.custom_period_type %}
                                     <span class="badge bg-info">Every {{ sub.custom_period_value }} {{ sub.custom_period_type }}</span>
@@ -242,11 +405,11 @@
                                 <span class="badge bg-primary">{{ sub.billing_cycle|title }}</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Monthly">
                             <strong>{{ currency_symbol }}{{ "%.2f"|format(sub.get_monthly_cost_in_currency(user_currency)) }}</strong>
                         </td>
-                        <td>{{ sub.start_date|user_date }}</td>
-                        <td>
+                        <td data-label="Start">{{ sub.start_date|user_date }}</td>
+                        <td data-label="End">
                             {% if sub.end_date %}
                                 {{ sub.end_date|user_date }}
                                 {% set days_left = sub.days_until_expiry() %}
@@ -264,15 +427,16 @@
                                 <span class="badge bg-success">Infinite</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if sub.is_active %}
-                                <span class="badge bg-success">Active</span>
+                        <td data-label="Next Billing">
+                            {% set next_bill = sub.get_next_billing_date(today_for_billing) %}
+                            {% if next_bill %}
+                                {{ next_bill|user_date }}
                             {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <div class="btn-group" role="group">
+                        <td data-label="Actions" class="actions-cell">
+                            <div class="dashboard-actions" role="group" aria-label="Subscription actions">
                                 <a href="{{ url_for('main.edit_subscription', id=sub.id) }}" 
                                    class="btn btn-sm btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -307,6 +471,7 @@
         {% endif %}
     </div>
 </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -333,6 +498,11 @@
         window.location.href = url.toString();
     }
 
+    function setStatusFilter(status) {
+        document.getElementById('statusFilter').value = status;
+        applyFilters();
+    }
+
     function applySorting() {
         const sortBy = document.getElementById('sortBy').value;
         const sortOrder = document.getElementById('sortOrder').value;
@@ -342,7 +512,7 @@
         url.searchParams.set('order', sortOrder);
         // Preserve current filters
         const currentCategory = '{{ current_category }}';
-        const currentStatus = '{{ current_status }}';
+        const currentStatus = document.getElementById('statusFilter').value;
         if (currentCategory) url.searchParams.set('category', currentCategory);
         if (currentStatus) url.searchParams.set('status', currentStatus);
         
@@ -374,7 +544,7 @@
                 url.searchParams.set('order', newOrder);
                 // Preserve current filters
                 const currentCategory = '{{ current_category }}';
-                const currentStatus = '{{ current_status }}';
+                const currentStatus = document.getElementById('statusFilter').value;
                 if (currentCategory) url.searchParams.set('category', currentCategory);
                 if (currentStatus) url.searchParams.set('status', currentStatus);
                 

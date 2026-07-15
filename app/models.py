@@ -273,6 +273,119 @@ class Subscription(db.Model):
         delta = self.end_date - datetime.now().date()
         return delta.days if delta.days >= 0 else 0
 
+    def get_next_billing_date(self, today=None):
+        """Calculate the next billing date based on start_date, billing_cycle, and end_date.
+        
+        Returns the next date when the subscription will charge/renew.
+        If the subscription has already ended, returns None.
+        """
+        from datetime import datetime, timedelta, date
+        import calendar
+
+        def _clamped_date(year, month, day):
+            max_day = calendar.monthrange(year, month)[1]
+            return date(year, month, min(day, max_day))
+
+        def _next_by_days(interval_days):
+            interval_days = max(1, int(interval_days or 1))
+            days_since_start = (today - self.start_date).days
+            steps = max(0, days_since_start // interval_days)
+            candidate = self.start_date + timedelta(days=steps * interval_days)
+            if candidate <= today:
+                candidate = candidate + timedelta(days=interval_days)
+            return candidate
+
+        def _add_month_steps(steps, months_per_step, anchor_day):
+            total_month = self.start_date.month - 1 + (steps * months_per_step)
+            year = self.start_date.year + (total_month // 12)
+            month = (total_month % 12) + 1
+            return _clamped_date(year, month, anchor_day)
+
+        def _next_by_months(months_per_step):
+            months_per_step = max(1, int(months_per_step or 1))
+            anchor_day = self.start_date.day
+            months_since_start = (
+                (today.year - self.start_date.year) * 12
+                + (today.month - self.start_date.month)
+            )
+            steps = max(0, months_since_start // months_per_step)
+            candidate = _add_month_steps(steps, months_per_step, anchor_day)
+            while candidate <= today:
+                steps += 1
+                candidate = _add_month_steps(steps, months_per_step, anchor_day)
+            return candidate
+
+        def _add_year_steps(steps, years_per_step, anchor_month, anchor_day):
+            year = self.start_date.year + (steps * years_per_step)
+            return _clamped_date(year, anchor_month, anchor_day)
+
+        def _next_by_years(years_per_step):
+            years_per_step = max(1, int(years_per_step or 1))
+            anchor_month = self.start_date.month
+            anchor_day = self.start_date.day
+            years_since_start = today.year - self.start_date.year
+            steps = max(0, years_since_start // years_per_step)
+            candidate = _add_year_steps(steps, years_per_step, anchor_month, anchor_day)
+            while candidate <= today:
+                steps += 1
+                candidate = _add_year_steps(steps, years_per_step, anchor_month, anchor_day)
+            return candidate
+
+        today = today or datetime.now().date()
+        cycle = (self.billing_cycle or '').strip().lower()
+        
+        # If subscription hasn't started yet, return the start date
+        if self.start_date > today:
+            return self.start_date
+        
+        # If subscription has already ended, return None
+        if self.end_date and today > self.end_date:
+            return None
+        
+        if cycle == 'daily':
+            current_date = _next_by_days(1)
+        elif cycle == 'weekly':
+            current_date = _next_by_days(7)
+        elif cycle == 'bi-weekly':
+            current_date = _next_by_days(14)
+        elif cycle == 'monthly':
+            current_date = _next_by_months(1)
+        elif cycle == 'bi-monthly':
+            current_date = _next_by_months(2)
+        elif cycle == 'quarterly':
+            current_date = _next_by_months(3)
+        elif cycle == 'semi-annually':
+            current_date = _next_by_months(6)
+        elif cycle == 'yearly':
+            current_date = _next_by_years(1)
+        elif cycle == 'custom':
+            if self.custom_period_value and self.custom_period_type:
+                custom_type = self.custom_period_type.strip().lower()
+                if custom_type == 'days':
+                    current_date = _next_by_days(self.custom_period_value)
+                elif custom_type == 'months':
+                    current_date = _next_by_months(self.custom_period_value)
+                elif custom_type == 'years':
+                    current_date = _next_by_years(self.custom_period_value)
+                else:
+                    current_date = _next_by_months(1)
+            else:
+                # Fallback for custom_days (deprecated)
+                if self.custom_days:
+                    current_date = _next_by_days(self.custom_days)
+                else:
+                    # If custom period is incomplete, default to monthly
+                    current_date = _next_by_months(1)
+        else:
+            # Default to monthly for unknown cycles
+            current_date = _next_by_months(1)
+        
+        # If the calculated next billing date is after the end date, it won't happen
+        if self.end_date and current_date > self.end_date:
+            return None
+        
+        return current_date
+
     def get_notification_days(self, user_settings):
         """Get effective notification days for this subscription (custom or user default).
 
