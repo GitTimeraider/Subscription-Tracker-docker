@@ -371,3 +371,39 @@ class TestTimezoneAwareScheduling:
             settings.timezone = "UTC"
             settings.notification_time = 9
             db.session.commit()
+
+
+def test_notification_scheduler_also_starts_currency_refresh_scheduler():
+    import app.email as email_mod
+
+    class _FakeScheduler:
+        def __init__(self):
+            self.started = False
+
+        def add_job(self, **kwargs):
+            self.job = kwargs
+
+        def start(self):
+            self.started = True
+
+        def shutdown(self):
+            return None
+
+    class _FakeLogger:
+        def __getattr__(self, _name):
+            return lambda *args, **kwargs: None
+
+    class _FakeApp:
+        def __init__(self):
+            self.logger = _FakeLogger()
+            self._notification_scheduler = None
+
+    fake_app = _FakeApp()
+    fake_scheduler = _FakeScheduler()
+
+    with patch.object(email_mod, "BackgroundScheduler", return_value=fake_scheduler):
+        with patch("app.currency.start_currency_refresh_scheduler") as start_currency_scheduler:
+            email_mod.start_scheduler(fake_app)
+
+    assert fake_scheduler.started is True
+    start_currency_scheduler.assert_called_once_with(fake_app)

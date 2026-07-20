@@ -446,6 +446,12 @@ def start_scheduler(app):
     atexit.register(lambda: scheduler.shutdown())
     print("✅ Email notification scheduler started (checking hourly)")
 
+    try:
+        from app.currency import start_currency_refresh_scheduler
+        start_currency_refresh_scheduler(app)
+    except Exception as e:
+        print(f"⚠️  Currency refresh scheduler could not start: {e}")
+
 def send_test_email(app, user):
     """Send a test email to verify email configuration"""
     with app.app_context():

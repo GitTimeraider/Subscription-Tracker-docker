@@ -1,10 +1,12 @@
 import requests
 import json
 import os
+import atexit
 from datetime import datetime, date, timezone
 from flask import current_app
 import xml.etree.ElementTree as ET
 from decimal import Decimal, getcontext, InvalidOperation
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # High precision for chained conversions
 getcontext().prec = 28
@@ -354,3 +356,34 @@ class CurrencyConverter:
 
 # Global converter instance
 currency_converter = CurrencyConverter()
+
+
+def refresh_exchange_rates(app, base_currency='EUR'):
+    """Force a live refresh so background jobs keep cached rates warm."""
+    with app.app_context():
+        return currency_converter.get_exchange_rates(base_currency, force_refresh=True)
+
+
+def start_currency_refresh_scheduler(app):
+    """Start a background job that periodically refreshes cached exchange rates."""
+    if getattr(app, '_currency_refresh_scheduler', None):
+        return
+
+    refresh_minutes = int(os.getenv('CURRENCY_REFRESH_MINUTES', '1440'))
+    if refresh_minutes <= 0:
+        app.logger.info('Currency auto-refresh disabled (CURRENCY_REFRESH_MINUTES <= 0)')
+        return
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        func=lambda: refresh_exchange_rates(app),
+        trigger='interval',
+        minutes=refresh_minutes,
+        id='refresh_currency_rates',
+        replace_existing=True,
+        max_instances=1,
+    )
+    scheduler.start()
+    app._currency_refresh_scheduler = scheduler
+    atexit.register(lambda: scheduler.shutdown())
+    app.logger.info(f'Currency refresh scheduler started (every {refresh_minutes} minutes)')
