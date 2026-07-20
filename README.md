@@ -215,7 +215,7 @@ DATABASE_URL=mysql+pymysql://username:password@mariadb:3306/database_name
 #### Currency Exchange Variables
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates (per provider) | 1440 (24h) |
+| `CURRENCY_REFRESH_MINUTES` | Freshness window for cached exchange rates and the background auto-refresh interval (per provider) | 1440 (24h) |
 | `CURRENCY_PROVIDER_PRIORITY` | Comma list controlling provider fallback order | frankfurter,floatrates,erapi_open |
 
 
@@ -230,6 +230,8 @@ Currently bundled free, no‑key providers (all EUR base):
 You can set a personal preference in General Settings. The system builds a dynamic priority list putting your choice first, followed by the remaining providers, then falls back to: any cached provider for today → most recent historical cached record → static hardcoded approximations (last resort). A mismatch warning appears if your preferred provider is temporarily unavailable.
 
 Manual Refresh: In General Settings click the “Refresh Rates” button (POST `/refresh_rates`) to clear today’s cache and force a live refetch. A debug JSON endpoint is also available at `/debug/refresh_rates` (authenticated) to inspect raw values and sample conversions.
+
+Automatic Refresh: The app starts a background currency refresh job alongside the existing notification scheduler. By default it refreshes cached rates every `CURRENCY_REFRESH_MINUTES` minutes so the dashboard keeps updated values even when nobody opens the settings page.
 
 Precision: All conversions use Python `Decimal` with high precision to avoid cumulative rounding issues when summing many subscriptions.
 
