@@ -305,6 +305,16 @@
             overflow: hidden;
             background-color: var(--card-bg);
             color: var(--text-color);
+            /* Bootstrap hardcodes these to a light-theme near-black (#212529)
+               and reapplies them via a more specific selector on striped /
+               hovered / active rows, which silently wins over the plain
+               ".table { color }" rule above and left every other row
+               unreadable in dark mode. Redefining the variables themselves
+               keeps those rows in sync with the active theme. */
+            --bs-table-color: var(--text-color);
+            --bs-table-striped-color: var(--text-color);
+            --bs-table-active-color: var(--text-color);
+            --bs-table-hover-color: var(--text-color);
         }
 
         .table th, .table td {
@@ -455,6 +465,26 @@
         /* Override Bootstrap's .text-muted to respect theme */
         .text-muted {
             color: var(--text-muted) !important;
+        }
+
+        /* Tighten the inline nav bar just above the hamburger breakpoint so
+           the full menu keeps fitting on one line down to ~1050px wide. */
+        @media (min-width: 992px) and (max-width: 1300px) {
+            .navbar-brand {
+                font-size: 1.15rem;
+            }
+
+            .navbar .nav-link {
+                padding: 0.5rem 0.5rem !important;
+                font-size: 0.88rem;
+                white-space: nowrap;
+            }
+
+            /* Drop the decorative icons on the top-level nav links (not the
+               dropdown menus) so the full menu keeps fitting on one line. */
+            .navbar .navbar-nav > .nav-item > .nav-link > i {
+                display: none;
+            }
         }
 
         @media (max-width: 991.98px) {
