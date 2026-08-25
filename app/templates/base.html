@@ -457,6 +457,26 @@
             color: var(--text-muted) !important;
         }
 
+        /* Tighten the inline nav bar just above the hamburger breakpoint so
+           the full menu keeps fitting on one line down to ~1050px wide. */
+        @media (min-width: 992px) and (max-width: 1300px) {
+            .navbar-brand {
+                font-size: 1.15rem;
+            }
+
+            .navbar .nav-link {
+                padding: 0.5rem 0.5rem !important;
+                font-size: 0.88rem;
+                white-space: nowrap;
+            }
+
+            /* Drop the decorative icons on the top-level nav links (not the
+               dropdown menus) so the full menu keeps fitting on one line. */
+            .navbar .navbar-nav > .nav-item > .nav-link > i {
+                display: none;
+            }
+        }
+
         @media (max-width: 991.98px) {
             .navbar-collapse {
                 padding-top: 0.5rem;
