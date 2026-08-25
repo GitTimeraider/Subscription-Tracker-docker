@@ -305,6 +305,16 @@
             overflow: hidden;
             background-color: var(--card-bg);
             color: var(--text-color);
+            /* Bootstrap hardcodes these to a light-theme near-black (#212529)
+               and reapplies them via a more specific selector on striped /
+               hovered / active rows, which silently wins over the plain
+               ".table { color }" rule above and left every other row
+               unreadable in dark mode. Redefining the variables themselves
+               keeps those rows in sync with the active theme. */
+            --bs-table-color: var(--text-color);
+            --bs-table-striped-color: var(--text-color);
+            --bs-table-active-color: var(--text-color);
+            --bs-table-hover-color: var(--text-color);
         }
 
         .table th, .table td {
