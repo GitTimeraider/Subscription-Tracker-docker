@@ -28,11 +28,43 @@
 
     .dashboard-actions .btn {
         min-width: 2.1rem;
+        border-radius: 999px;
     }
 
-        .status-toggle .btn {
-            min-width: 6rem;
-        }
+    .status-toggle .btn {
+        min-width: 6rem;
+    }
+
+    .stats-row {
+        --bs-gutter-y: 1rem;
+    }
+
+    .stat-card-body {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        text-align: left !important;
+    }
+
+    .stat-icon {
+        width: 3rem;
+        height: 3rem;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.18);
+        font-size: 1.25rem;
+    }
+
+    .dashboard-toolbar {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 1.1rem 1.25rem 0.6rem;
+        margin-bottom: 1.5rem;
+    }
 
     @media (max-width: 1199.98px) {
         .dashboard-table {
@@ -154,33 +186,45 @@
 <div class="row mb-4 stats-row">
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
-            <div class="card-body text-center">
-                <h3>{{ currency_symbol }}{{ "%.2f"|format(total_monthly) }}</h3>
-                <p class="mb-0">Monthly Total ({{ user_currency }})</p>
+            <div class="card-body stat-card-body">
+                <div class="stat-icon"><i class="fas fa-coins"></i></div>
+                <div>
+                    <h3>{{ currency_symbol }}{{ "%.2f"|format(total_monthly) }}</h3>
+                    <p class="mb-0">Monthly Total ({{ user_currency }})</p>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
-            <div class="card-body text-center">
-                <h3>{{ currency_symbol }}{{ "%.2f"|format(total_yearly) }}</h3>
-                <p class="mb-0">Yearly Total ({{ user_currency }})</p>
+            <div class="card-body stat-card-body">
+                <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+                <div>
+                    <h3>{{ currency_symbol }}{{ "%.2f"|format(total_yearly) }}</h3>
+                    <p class="mb-0">Yearly Total ({{ user_currency }})</p>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
-            <div class="card-body text-center">
-                <h3>{{ subscriptions|length }}</h3>
-                <p class="mb-0">Total Subscriptions</p>
+            <div class="card-body stat-card-body">
+                <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+                <div>
+                    <h3>{{ subscriptions|length }}</h3>
+                    <p class="mb-0">Total Subscriptions</p>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card stats-card">
-            <div class="card-body text-center">
-                <h3>{{ expiring_soon|length }}</h3>
-                <p class="mb-0">Expiring Soon</p>
+            <div class="card-body stat-card-body">
+                <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                <div>
+                    <h3>{{ expiring_soon|length }}</h3>
+                    <p class="mb-0">Expiring Soon</p>
+                </div>
             </div>
         </div>
     </div>
@@ -209,7 +253,7 @@
             <small class="text-muted">Click column headers to sort • Use controls above to filter and sort</small>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('main.add_subscription') }}" class="btn btn-light">
+            <a href="{{ url_for('main.add_subscription') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-1"></i>Add Subscription
             </a>
         </div>
@@ -218,6 +262,7 @@
         <!-- Filters and Sorting -->
         {% set status_mode = current_status if current_status in ['active', 'inactive', 'expiring'] else 'active' %}
         <input type="hidden" id="statusFilter" value="{{ status_mode }}">
+        <div class="dashboard-toolbar">
         <div class="row mb-3">
             <div class="col-12 col-md-6 col-xl-3">
                 <label for="categoryFilter" class="form-label">Filter by Category:</label>
@@ -281,6 +326,7 @@
                     </button>
                 </div>
             </div>
+        </div>
         </div>
 
         {% if subscriptions %}
