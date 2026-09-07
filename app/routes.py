@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory, current_app
 from urllib.parse import urlparse
 from flask_login import login_user, logout_user, login_required, current_user
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from app import db
 from app.models import User, Subscription, UserSettings, PaymentMethod, ExchangeRate, Webhook
 from app.forms import (LoginForm, SubscriptionForm, UserSettingsForm, 
@@ -107,9 +107,13 @@ def dashboard():
     # Get filter parameters
     category_filter = request.args.get('category', 'all')
     status_filter = request.args.get('status', 'active')
+    payment_type_filter = request.args.get('payment_type', 'all')
+    billing_cycle_filter = request.args.get('billing_cycle', 'all')
+    search_query = request.args.get('search', '').strip()
+    search_field = request.args.get('search_field', 'all')
     sort_by = request.args.get('sort', 'end_date')  # Default sort by end_date (nearest expiry first)
     sort_order = request.args.get('order', 'asc')  # Default ascending order (nearest first)
-    
+
     query = Subscription.query.filter_by(user_id=current_user.id)
 
     user_settings_for_today = current_user.settings or UserSettings()
@@ -134,7 +138,31 @@ def dashboard():
             Subscription.end_date <= check_date,
             Subscription.end_date >= datetime.now().date()
         )
-    
+
+    if billing_cycle_filter != 'all':
+        query = query.filter_by(billing_cycle=billing_cycle_filter)
+
+    if payment_type_filter == 'none':
+        query = query.filter(Subscription.payment_method_id.is_(None))
+    elif payment_type_filter != 'all':
+        query = query.join(PaymentMethod, Subscription.payment_method_id == PaymentMethod.id) \
+                     .filter(PaymentMethod.payment_type == payment_type_filter)
+
+    if search_query:
+        like_pattern = f'%{search_query}%'
+        if search_field == 'name':
+            query = query.filter(Subscription.name.ilike(like_pattern))
+        elif search_field == 'company':
+            query = query.filter(Subscription.company.ilike(like_pattern))
+        elif search_field == 'notes':
+            query = query.filter(Subscription.notes.ilike(like_pattern))
+        else:
+            query = query.filter(or_(
+                Subscription.name.ilike(like_pattern),
+                Subscription.company.ilike(like_pattern),
+                Subscription.notes.ilike(like_pattern)
+            ))
+
     # Apply sorting
     if sort_by == 'name':
         if sort_order == 'desc':
@@ -257,17 +285,32 @@ def dashboard():
     
     categories = db.session.query(Subscription.category.distinct()).filter_by(user_id=current_user.id).all()
     categories = [cat[0] for cat in categories if cat[0]]
+    billing_cycles = db.session.query(Subscription.billing_cycle.distinct()).filter_by(user_id=current_user.id).all()
+    billing_cycles = [bc[0] for bc in billing_cycles if bc[0]]
+    payment_types = db.session.query(PaymentMethod.payment_type.distinct()) \
+        .join(Subscription, Subscription.payment_method_id == PaymentMethod.id) \
+        .filter(Subscription.user_id == current_user.id).all()
+    payment_types = [pt[0] for pt in payment_types if pt[0]]
+    has_unassigned_payment = db.session.query(Subscription.id) \
+        .filter_by(user_id=current_user.id, payment_method_id=None).first() is not None
     expiring_soon = [sub for sub in subscriptions if sub.is_expiring_soon(user_settings.notification_days)]
     currency_symbol = currency_converter.get_currency_symbol(display_currency)
     active_provider = currency_converter.last_provider
-    
-    return render_template('dashboard.html', 
+
+    return render_template('dashboard.html',
                          subscriptions=subscriptions,
                          total_monthly=total_monthly,
                          total_yearly=total_yearly,
                          categories=categories,
+                         billing_cycles=billing_cycles,
+                         payment_types=payment_types,
+                         has_unassigned_payment=has_unassigned_payment,
                          current_category=category_filter,
                          current_status=status_filter,
+                         current_payment_type=payment_type_filter,
+                         current_billing_cycle=billing_cycle_filter,
+                         current_search=search_query,
+                         current_search_field=search_field,
                          current_sort=sort_by,
                          current_order=sort_order,
                          expiring_soon=expiring_soon,
