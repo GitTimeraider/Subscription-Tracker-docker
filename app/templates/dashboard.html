@@ -80,8 +80,46 @@
         background: var(--bg-color);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
-        padding: 1.1rem 1.25rem 0.6rem;
+        padding: 1.1rem 1.25rem 1rem;
         margin-bottom: 1.5rem;
+    }
+
+    .dashboard-toolbar .form-label {
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .search-group {
+        min-width: 220px;
+    }
+
+    .search-field-select {
+        max-width: 8.5rem;
+        flex: 0 0 auto;
+    }
+
+    .sort-group .form-select {
+        min-width: 9rem;
+    }
+
+    .toolbar-buttons .btn {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 575.98px) {
+        .search-group,
+        .sort-group,
+        .toolbar-buttons {
+            width: 100%;
+        }
+
+        .toolbar-buttons {
+            justify-content: space-between;
+        }
+
+        .toolbar-buttons .btn {
+            flex: 1 1 auto;
+        }
     }
 
     @media (max-width: 991.98px) {
@@ -271,74 +309,132 @@
         </div>
     </div>
     <div class="card-body">
-        <!-- Filters and Sorting -->
+        <!-- Filters, Search and Sorting -->
         {% set status_mode = current_status if current_status in ['active', 'inactive', 'expiring'] else 'active' %}
+        {% set filter_count = 0 %}
+        {% if current_category != 'all' %}{% set filter_count = filter_count + 1 %}{% endif %}
+        {% if status_mode != 'active' %}{% set filter_count = filter_count + 1 %}{% endif %}
+        {% if current_payment_type != 'all' %}{% set filter_count = filter_count + 1 %}{% endif %}
+        {% if current_billing_cycle != 'all' %}{% set filter_count = filter_count + 1 %}{% endif %}
         <input type="hidden" id="statusFilter" value="{{ status_mode }}">
         <div class="dashboard-toolbar">
-        <div class="row mb-3">
-            <div class="col-12 col-md-6 col-xl-3">
-                <label for="categoryFilter" class="form-label">Filter by Category:</label>
-                <select id="categoryFilter" class="form-select" onchange="applyFilters()">
-                    <option value="all" {{ 'selected' if current_category == 'all' else '' }}>All Categories</option>
-                    {% for category in categories %}
-                    <option value="{{ category }}" {{ 'selected' if current_category == category else '' }}>
-                        {{ category|replace('_', ' ')|title }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-3">
-                <label class="form-label d-block">Subscriptions:</label>
-                <div class="btn-group status-toggle" role="group" aria-label="Filter subscriptions by status">
-                    <button
-                        type="button"
-                        class="btn {{ 'btn-primary' if status_mode == 'active' else 'btn-outline-primary' }}"
-                        onclick="setStatusFilter('active')"
-                    >
-                        Active
-                    </button>
-                    <button
-                        type="button"
-                        class="btn {{ 'btn-primary' if status_mode == 'inactive' else 'btn-outline-primary' }}"
-                        onclick="setStatusFilter('inactive')"
-                    >
-                        Inactive
-                    </button>
-                    <button
-                        type="button"
-                        class="btn {{ 'btn-primary' if status_mode == 'expiring' else 'btn-outline-primary' }}"
-                        onclick="setStatusFilter('expiring')"
-                    >
-                        Expiring
-                    </button>
+            <div class="toolbar-main d-flex flex-wrap align-items-end gap-2">
+                <div class="search-group flex-grow-1">
+                    <label for="searchInput" class="form-label">Search:</label>
+                    <div class="input-group input-group-sm">
+                        <select id="searchField" class="form-select search-field-select" title="Search in">
+                            <option value="all" {{ 'selected' if current_search_field == 'all' else '' }}>Name/Company/Notes</option>
+                            <option value="name" {{ 'selected' if current_search_field == 'name' else '' }}>Name</option>
+                            <option value="company" {{ 'selected' if current_search_field == 'company' else '' }}>Company</option>
+                            <option value="notes" {{ 'selected' if current_search_field == 'notes' else '' }}>Notes</option>
+                        </select>
+                        <input type="search" id="searchInput" class="form-control" placeholder="Search subscriptions..." value="{{ current_search }}">
+                        <button type="button" class="btn btn-outline-secondary" onclick="applySearch()" title="Search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        {% if current_search %}
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()" title="Clear search">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            <div class="col-12 col-md-6 col-xl-3">
-                <label for="sortBy" class="form-label">Sort by:</label>
-                <select id="sortBy" class="form-select" onchange="applySorting()">
-                    <option value="name" {{ 'selected' if current_sort == 'name' else '' }}>Name (A-Z)</option>
-                    <option value="company" {{ 'selected' if current_sort == 'company' else '' }}>Company (A-Z)</option>
-                    <option value="category" {{ 'selected' if current_sort == 'category' else '' }}>Category</option>
-                    <option value="cost" {{ 'selected' if current_sort == 'cost' else '' }}>Original Cost</option>
-                    <option value="monthly_cost" {{ 'selected' if current_sort == 'monthly_cost' else '' }}>Monthly Cost</option>
-                    <option value="start_date" {{ 'selected' if current_sort == 'start_date' else '' }}>Start Date</option>
-                    <option value="end_date" {{ 'selected' if current_sort == 'end_date' else '' }}>End Date</option>
-                    <option value="next_billing_date" {{ 'selected' if current_sort == 'next_billing_date' else '' }}>Next Billing Date</option>
-                </select>
-            </div>
-            <div class="col-12 col-md-6 col-xl-3">
-                <label for="sortOrder" class="form-label">Order:</label>
-                <div class="d-flex gap-2">
-                    <select id="sortOrder" class="form-select" onchange="applySorting()">
-                        <option value="asc" {{ 'selected' if current_order == 'asc' else '' }}>Ascending</option>
-                        <option value="desc" {{ 'selected' if current_order == 'desc' else '' }}>Descending</option>
-                    </select>
+                <div class="sort-group">
+                    <label for="sortBy" class="form-label">Sort by:</label>
+                    <div class="input-group input-group-sm">
+                        <select id="sortBy" class="form-select" onchange="applySorting()">
+                            <option value="name" {{ 'selected' if current_sort == 'name' else '' }}>Name (A-Z)</option>
+                            <option value="company" {{ 'selected' if current_sort == 'company' else '' }}>Company (A-Z)</option>
+                            <option value="category" {{ 'selected' if current_sort == 'category' else '' }}>Category</option>
+                            <option value="cost" {{ 'selected' if current_sort == 'cost' else '' }}>Original Cost</option>
+                            <option value="monthly_cost" {{ 'selected' if current_sort == 'monthly_cost' else '' }}>Monthly Cost</option>
+                            <option value="start_date" {{ 'selected' if current_sort == 'start_date' else '' }}>Start Date</option>
+                            <option value="end_date" {{ 'selected' if current_sort == 'end_date' else '' }}>End Date</option>
+                            <option value="next_billing_date" {{ 'selected' if current_sort == 'next_billing_date' else '' }}>Next Billing Date</option>
+                        </select>
+                        <button type="button" id="sortOrderToggle" class="btn btn-outline-secondary" data-order="{{ current_order }}" onclick="toggleSortOrder()" title="Toggle ascending/descending">
+                            <i class="fas fa-sort-{{ 'up' if current_order == 'asc' else 'down' }}"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="toolbar-buttons d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="{{ 'true' if filter_count > 0 else 'false' }}" aria-controls="filtersCollapse" title="Show/hide filters">
+                        <i class="fas fa-filter me-1"></i>Filters
+                        {% if filter_count > 0 %}
+                        <span class="badge rounded-pill bg-primary ms-1">{{ filter_count }}</span>
+                        {% endif %}
+                    </button>
                     <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()" title="Clear all filters and sorting">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
-        </div>
+            <div class="collapse {{ 'show' if filter_count > 0 else '' }}" id="filtersCollapse">
+                <div class="row mt-3 g-2">
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="categoryFilter" class="form-label">Category:</label>
+                        <select id="categoryFilter" class="form-select form-select-sm" onchange="applyFilters()">
+                            <option value="all" {{ 'selected' if current_category == 'all' else '' }}>All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category }}" {{ 'selected' if current_category == category else '' }}>
+                                {{ category|replace('_', ' ')|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label class="form-label d-block">Status:</label>
+                        <div class="btn-group status-toggle w-100" role="group" aria-label="Filter subscriptions by status">
+                            <button
+                                type="button"
+                                class="btn {{ 'btn-primary' if status_mode == 'active' else 'btn-outline-primary' }}"
+                                onclick="setStatusFilter('active')"
+                            >
+                                Active
+                            </button>
+                            <button
+                                type="button"
+                                class="btn {{ 'btn-primary' if status_mode == 'inactive' else 'btn-outline-primary' }}"
+                                onclick="setStatusFilter('inactive')"
+                            >
+                                Inactive
+                            </button>
+                            <button
+                                type="button"
+                                class="btn {{ 'btn-primary' if status_mode == 'expiring' else 'btn-outline-primary' }}"
+                                onclick="setStatusFilter('expiring')"
+                            >
+                                Expiring
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="paymentTypeFilter" class="form-label">Payment Type:</label>
+                        <select id="paymentTypeFilter" class="form-select form-select-sm" onchange="applyFilters()">
+                            <option value="all" {{ 'selected' if current_payment_type == 'all' else '' }}>All Payment Types</option>
+                            {% for payment_type in payment_types %}
+                            <option value="{{ payment_type }}" {{ 'selected' if current_payment_type == payment_type else '' }}>
+                                {{ payment_type|replace('_', ' ')|title }}
+                            </option>
+                            {% endfor %}
+                            {% if has_unassigned_payment %}
+                            <option value="none" {{ 'selected' if current_payment_type == 'none' else '' }}>Not set</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="billingCycleFilter" class="form-label">Billing Cycle:</label>
+                        <select id="billingCycleFilter" class="form-select form-select-sm" onchange="applyFilters()">
+                            <option value="all" {{ 'selected' if current_billing_cycle == 'all' else '' }}>All Cycles</option>
+                            {% for cycle in billing_cycles %}
+                            <option value="{{ cycle }}" {{ 'selected' if current_billing_cycle == cycle else '' }}>
+                                {{ cycle|replace('_', ' ')|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {% if subscriptions %}
@@ -540,73 +636,89 @@
         return new bootstrap.Tooltip(tooltipTriggerEl)
     })
 
-    function applyFilters() {
-        const category = document.getElementById('categoryFilter').value;
-        const status = document.getElementById('statusFilter').value;
-        
-        const url = new URL(window.location);
-        url.searchParams.set('category', category);
-        url.searchParams.set('status', status);
-        // Preserve current sorting
-        const currentSort = '{{ current_sort }}';
-        const currentOrder = '{{ current_order }}';
-        if (currentSort) url.searchParams.set('sort', currentSort);
-        if (currentOrder) url.searchParams.set('order', currentOrder);
-        
+    // Single source of truth for the dashboard's filter/search/sort state.
+    // Every control (filters, search, sort dropdown, order toggle, column
+    // headers) reads the current state from the DOM and navigates through
+    // this one helper, so none of them can drift out of sync with another.
+    function currentParams() {
+        return {
+            category: document.getElementById('categoryFilter').value,
+            status: document.getElementById('statusFilter').value,
+            payment_type: document.getElementById('paymentTypeFilter').value,
+            billing_cycle: document.getElementById('billingCycleFilter').value,
+            search: document.getElementById('searchInput').value.trim(),
+            search_field: document.getElementById('searchField').value,
+            sort: document.getElementById('sortBy').value,
+            order: document.getElementById('sortOrderToggle').dataset.order
+        };
+    }
+
+    function navigate(overrides) {
+        const params = Object.assign(currentParams(), overrides || {});
+        const url = new URL(window.location.origin + window.location.pathname);
+        Object.keys(params).forEach(key => {
+            if (params[key]) url.searchParams.set(key, params[key]);
+        });
         window.location.href = url.toString();
+    }
+
+    function applyFilters() {
+        navigate();
     }
 
     function setStatusFilter(status) {
         document.getElementById('statusFilter').value = status;
-        applyFilters();
+        navigate();
     }
 
     function applySorting() {
-        const sortBy = document.getElementById('sortBy').value;
-        const sortOrder = document.getElementById('sortOrder').value;
-        
-        const url = new URL(window.location);
-        url.searchParams.set('sort', sortBy);
-        url.searchParams.set('order', sortOrder);
-        // Preserve current filters
-        const currentCategory = '{{ current_category }}';
-        const currentStatus = document.getElementById('statusFilter').value;
-        if (currentCategory) url.searchParams.set('category', currentCategory);
-        if (currentStatus) url.searchParams.set('status', currentStatus);
-        
-        window.location.href = url.toString();
+        navigate();
+    }
+
+    function toggleSortOrder() {
+        const btn = document.getElementById('sortOrderToggle');
+        const newOrder = btn.dataset.order === 'asc' ? 'desc' : 'asc';
+        navigate({ order: newOrder });
+    }
+
+    function applySearch() {
+        navigate();
+    }
+
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        navigate({ search: '' });
     }
 
     function clearFilters() {
         window.location.href = '{{ url_for("main.dashboard") }}';
     }
-    
-    // Add click handlers for sortable headers
+
     document.addEventListener('DOMContentLoaded', function() {
+        // Trigger search on Enter
+        document.getElementById('searchInput').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applySearch();
+            }
+        });
+
+        // Add click handlers for sortable headers
         const sortableHeaders = document.querySelectorAll('.sortable-header');
         sortableHeaders.forEach(header => {
             header.style.cursor = 'pointer';
             header.addEventListener('click', function() {
                 const sortField = this.dataset.sort;
                 const currentSort = '{{ current_sort }}';
-                const currentOrder = '{{ current_order }}';
-                
+                const currentOrder = document.getElementById('sortOrderToggle').dataset.order;
+
                 // If clicking the same column, toggle order; otherwise, default to ascending
                 let newOrder = 'asc';
                 if (currentSort === sortField && currentOrder === 'asc') {
                     newOrder = 'desc';
                 }
-                
-                const url = new URL(window.location);
-                url.searchParams.set('sort', sortField);
-                url.searchParams.set('order', newOrder);
-                // Preserve current filters
-                const currentCategory = '{{ current_category }}';
-                const currentStatus = document.getElementById('statusFilter').value;
-                if (currentCategory) url.searchParams.set('category', currentCategory);
-                if (currentStatus) url.searchParams.set('status', currentStatus);
-                
-                window.location.href = url.toString();
+
+                navigate({ sort: sortField, order: newOrder });
             });
         });
     });

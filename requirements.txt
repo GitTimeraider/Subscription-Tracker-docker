@@ -7,10 +7,10 @@ WTForms==3.2.2
 python-dotenv==1.2.3
 email-validator==2.3.0
 APScheduler==3.11.3
-gunicorn==26.1.0
+gunicorn==26.2.0
 Werkzeug==3.1.8
 requests==2.34.2
 
 # Database drivers
-psycopg[binary,pool]==3.3.4
+psycopg[binary,pool]==3.3.5
 PyMySQL==1.2.0
