@@ -94,7 +94,7 @@
     }
 
     .search-field-select {
-        max-width: 8.5rem;
+        max-width: 6rem;
         flex: 0 0 auto;
     }
 
@@ -323,7 +323,7 @@
                     <label for="searchInput" class="form-label">Search:</label>
                     <div class="input-group input-group-sm">
                         <select id="searchField" class="form-select search-field-select" title="Search in">
-                            <option value="all" {{ 'selected' if current_search_field == 'all' else '' }}>Name/Company/Notes</option>
+                            <option value="all" {{ 'selected' if current_search_field == 'all' else '' }}>All</option>
                             <option value="name" {{ 'selected' if current_search_field == 'name' else '' }}>Name</option>
                             <option value="company" {{ 'selected' if current_search_field == 'company' else '' }}>Company</option>
                             <option value="notes" {{ 'selected' if current_search_field == 'notes' else '' }}>Notes</option>
