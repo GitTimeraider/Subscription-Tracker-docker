@@ -13,4 +13,4 @@ requests==2.34.2
 
 # Database drivers
 psycopg[binary,pool]==3.3.5
-PyMySQL==1.2.0
+PyMySQL==1.2.3
