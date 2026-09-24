@@ -3,6 +3,9 @@ version: '3.8'
 services:
   web:
     build: .
+    # Optional hardening: start directly as a non-root user instead of root + PUID/GUID.
+    # ./data must be owned by this UID:GID on the host (sudo chown -R 1000:1000 ./data).
+    # user: "1000:1000"
     ports:
       - "5000:5000"
     environment:
