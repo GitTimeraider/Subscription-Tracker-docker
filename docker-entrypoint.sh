@@ -14,6 +14,11 @@ GUID=${PGID:-${GUID:-1000}}
 APP_USER=${USER:-appuser}
 APP_GROUP=${GROUP:-appgroup}
 
+# Function to check if the root filesystem itself is mounted read-only (used for log wording only)
+is_root_fs_readonly() {
+    awk '$2 == "/" { print $4 }' /proc/mounts 2>/dev/null | grep -qE '(^|,)ro(,|$)'
+}
+
 # Function to check if running with read-only filesystem or restricted user management
 is_readonly_fs() {
     # Check if root filesystem is read-only
@@ -63,7 +68,13 @@ setup_user_mapping() {
     
     if is_readonly_fs; then
         readonly_detected=true
-        echo "🔒 Read-only filesystem or restricted user management detected"
+        if is_root_fs_readonly; then
+            echo "🔒 Read-only root filesystem detected"
+        elif [ "$(id -u)" != "0" ]; then
+            echo "ℹ️ Running as non-root: user management not needed"
+        else
+            echo "🔒 User management restricted (/etc/passwd or /etc/group not writable)"
+        fi
     fi
     
     if is_user_directive; then
@@ -149,7 +160,16 @@ setup_user_mapping() {
     fi
     
     echo "📋 Final configuration: $APP_USER:$APP_GROUP"
-    echo "🎯 Deployment mode: $([ "$readonly_detected" = "true" ] && echo "READ-ONLY" || echo "STANDARD") $([ "$user_directive_detected" = "true" ] && echo "+ USER-DIRECTIVE" || echo "")"
+    local mode
+    if [ "$user_directive_detected" = "true" ]; then
+        mode="NON-ROOT (--user)"
+    else
+        mode="STANDARD (root + PUID/GUID)"
+    fi
+    if is_root_fs_readonly; then
+        mode="$mode + READ-ONLY ROOT FS"
+    fi
+    echo "🎯 Deployment mode: $mode"
 }
 
 # Ensure writable directories exist for application data with comprehensive self-fixing
@@ -172,13 +192,17 @@ ensure_writable_dirs() {
     
     # Only attempt directory creation if we can write
     if is_readonly_fs; then
-        echo "⚠️ Read-only filesystem detected"
+        if is_root_fs_readonly; then
+            echo "🔒 Read-only root filesystem: skipping directory setup"
+        else
+            echo "👤 Non-root mode: skipping ownership changes"
+        fi
         # For read-only filesystem, only check that required dirs exist
         if [ ! -d "/app/instance" ]; then
             echo "❌ ERROR: /app/instance directory does not exist. Please mount it as a volume."
             exit 1
         fi
-        echo "✅ Instance directory exists on read-only filesystem"
+        echo "✅ Instance directory exists"
     else
         # Create directories if needed
         mkdir -p /app/instance
