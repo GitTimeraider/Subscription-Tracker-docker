@@ -161,7 +161,13 @@ ensure_writable_dirs() {
     local target_gid="${GUID:-1000}"
     local target_user="${APP_USER}"
     local target_group="${APP_GROUP}"
-    
+
+    # When started with --user, ownership cannot be changed; report the actual IDs
+    if [ "$(id -u)" != "0" ]; then
+        target_uid="$(id -u)"
+        target_gid="$(id -g)"
+    fi
+
     echo "Target ownership: $target_uid:$target_gid ($target_user:$target_group)"
     
     # Only attempt directory creation if we can write
@@ -203,7 +209,7 @@ ensure_writable_dirs() {
                 
                 # Test database write capability
                 if command -v sqlite3 >/dev/null 2>&1; then
-                    if ! sudo -u "#$target_uid" sqlite3 /app/instance/subscriptions.db "CREATE TABLE IF NOT EXISTS permission_test (id INTEGER); DROP TABLE IF EXISTS permission_test;" 2>/dev/null; then
+                    if ! gosu "$target_uid:$target_gid" sqlite3 /app/instance/subscriptions.db "CREATE TABLE IF NOT EXISTS permission_test (id INTEGER); DROP TABLE IF EXISTS permission_test;" 2>/dev/null; then
                         echo "⚠️ Database write test failed - attempting repair"
                         # Try to fix any corruption or permission issues
                         chown "$target_uid:$target_gid" /app/instance/subscriptions.db*
@@ -333,7 +339,7 @@ init_database() {
                 echo "🔍 Testing database integrity and write capability..."
                 
                 # Test as the target user
-                if sudo -u "#$target_uid" python3 -c "
+                if gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 import sys
 try:
@@ -354,7 +360,7 @@ except Exception as e:
                     echo "⚠️ Database write test failed - attempting repair"
                     
                     # Try to fix any WAL mode issues
-                    sudo -u "#$target_uid" python3 -c "
+                    gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 try:
     conn = sqlite3.connect('$db_file')
@@ -374,7 +380,7 @@ except Exception as e:
                 echo "📝 No existing database - will be created with proper permissions"
                 
                 # Pre-create database with correct ownership
-                sudo -u "#$target_uid" python3 -c "
+                gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 import os
 db_path = '$db_file'
