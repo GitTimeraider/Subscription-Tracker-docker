@@ -14,6 +14,11 @@ GUID=${PGID:-${GUID:-1000}}
 APP_USER=${USER:-appuser}
 APP_GROUP=${GROUP:-appgroup}
 
+# Function to check if the root filesystem itself is mounted read-only (used for log wording only)
+is_root_fs_readonly() {
+    awk '$2 == "/" { print $4 }' /proc/mounts 2>/dev/null | grep -qE '(^|,)ro(,|$)'
+}
+
 # Function to check if running with read-only filesystem or restricted user management
 is_readonly_fs() {
     # Check if root filesystem is read-only
@@ -63,7 +68,13 @@ setup_user_mapping() {
     
     if is_readonly_fs; then
         readonly_detected=true
-        echo "🔒 Read-only filesystem or restricted user management detected"
+        if is_root_fs_readonly; then
+            echo "🔒 Read-only root filesystem detected"
+        elif [ "$(id -u)" != "0" ]; then
+            echo "ℹ️ Running as non-root: user management not needed"
+        else
+            echo "🔒 User management restricted (/etc/passwd or /etc/group not writable)"
+        fi
     fi
     
     if is_user_directive; then
@@ -149,7 +160,16 @@ setup_user_mapping() {
     fi
     
     echo "📋 Final configuration: $APP_USER:$APP_GROUP"
-    echo "🎯 Deployment mode: $([ "$readonly_detected" = "true" ] && echo "READ-ONLY" || echo "STANDARD") $([ "$user_directive_detected" = "true" ] && echo "+ USER-DIRECTIVE" || echo "")"
+    local mode
+    if [ "$user_directive_detected" = "true" ]; then
+        mode="NON-ROOT (--user)"
+    else
+        mode="STANDARD (root + PUID/GUID)"
+    fi
+    if is_root_fs_readonly; then
+        mode="$mode + READ-ONLY ROOT FS"
+    fi
+    echo "🎯 Deployment mode: $mode"
 }
 
 # Ensure writable directories exist for application data with comprehensive self-fixing
@@ -161,18 +181,28 @@ ensure_writable_dirs() {
     local target_gid="${GUID:-1000}"
     local target_user="${APP_USER}"
     local target_group="${APP_GROUP}"
-    
+
+    # When started with --user, ownership cannot be changed; report the actual IDs
+    if [ "$(id -u)" != "0" ]; then
+        target_uid="$(id -u)"
+        target_gid="$(id -g)"
+    fi
+
     echo "Target ownership: $target_uid:$target_gid ($target_user:$target_group)"
     
     # Only attempt directory creation if we can write
     if is_readonly_fs; then
-        echo "⚠️ Read-only filesystem detected"
+        if is_root_fs_readonly; then
+            echo "🔒 Read-only root filesystem: skipping directory setup"
+        else
+            echo "👤 Non-root mode: skipping ownership changes"
+        fi
         # For read-only filesystem, only check that required dirs exist
         if [ ! -d "/app/instance" ]; then
             echo "❌ ERROR: /app/instance directory does not exist. Please mount it as a volume."
             exit 1
         fi
-        echo "✅ Instance directory exists on read-only filesystem"
+        echo "✅ Instance directory exists"
     else
         # Create directories if needed
         mkdir -p /app/instance
@@ -203,7 +233,7 @@ ensure_writable_dirs() {
                 
                 # Test database write capability
                 if command -v sqlite3 >/dev/null 2>&1; then
-                    if ! sudo -u "#$target_uid" sqlite3 /app/instance/subscriptions.db "CREATE TABLE IF NOT EXISTS permission_test (id INTEGER); DROP TABLE IF EXISTS permission_test;" 2>/dev/null; then
+                    if ! gosu "$target_uid:$target_gid" sqlite3 /app/instance/subscriptions.db "CREATE TABLE IF NOT EXISTS permission_test (id INTEGER); DROP TABLE IF EXISTS permission_test;" 2>/dev/null; then
                         echo "⚠️ Database write test failed - attempting repair"
                         # Try to fix any corruption or permission issues
                         chown "$target_uid:$target_gid" /app/instance/subscriptions.db*
@@ -333,7 +363,7 @@ init_database() {
                 echo "🔍 Testing database integrity and write capability..."
                 
                 # Test as the target user
-                if sudo -u "#$target_uid" python3 -c "
+                if gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 import sys
 try:
@@ -354,7 +384,7 @@ except Exception as e:
                     echo "⚠️ Database write test failed - attempting repair"
                     
                     # Try to fix any WAL mode issues
-                    sudo -u "#$target_uid" python3 -c "
+                    gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 try:
     conn = sqlite3.connect('$db_file')
@@ -374,7 +404,7 @@ except Exception as e:
                 echo "📝 No existing database - will be created with proper permissions"
                 
                 # Pre-create database with correct ownership
-                sudo -u "#$target_uid" python3 -c "
+                gosu "$target_uid:$target_gid" python3 -c "
 import sqlite3
 import os
 db_path = '$db_file'

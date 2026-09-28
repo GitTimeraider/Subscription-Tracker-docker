@@ -263,6 +263,36 @@ docker run -d \
 
 On container start an unprivileged user matching those IDs is created/updated and the process is dropped to it using `gosu`.
 
+### Running Without Root (`--user` / `user:`)
+
+For extra hardening you can skip the root startup phase entirely and start the container directly as an unprivileged user. The entrypoint detects this automatically: it skips all user/ownership changes, ignores `PUID`/`PGID`, and runs the app as the given UID:GID. Any UID:GID works; it does not need to exist inside the image.
+
+Because the container can no longer fix ownership itself, **the data directory must be owned by that user on the host first**. Run this once on the host (in the folder that contains `docker-compose.yml`):
+```bash
+mkdir -p ./data
+sudo chown -R 1000:1000 ./data   # use the same UID:GID as below
+```
+
+docker-compose:
+```yaml
+services:
+   web:
+      user: "1000:1000"
+      volumes:
+         - ./data:/app/instance
+```
+
+Or with plain docker run:
+```bash
+docker run -d \
+   --user $(id -u):$(id -g) \
+   -v $(pwd)/data:/app/instance \
+   -p 5000:5000 \
+   ghcr.io/gittimeraider/subscription-tracker:latest
+```
+
+If the directory isn't writable, the container exits at startup with the exact `chown` command to run. For a fully hardened setup (read-only root filesystem, all capabilities dropped, `no-new-privileges`), see `docker-compose.security.yml`.
+
 ### Email Configuration Examples
 
 #### Gmail Setup
