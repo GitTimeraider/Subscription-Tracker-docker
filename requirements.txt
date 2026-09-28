@@ -1,6 +1,6 @@
 Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
-tzdata==2026.3
+tzdata==2026.4
 Flask-Login==0.6.3
 Flask-WTF==1.3.0
 WTForms==3.2.2
@@ -12,5 +12,5 @@ Werkzeug==3.1.8
 requests==2.34.2
 
 # Database drivers
-psycopg[binary,pool]==3.3.5
-PyMySQL==1.2.0
+psycopg[binary,pool]==3.3.6
+PyMySQL==1.2.3
