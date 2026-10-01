@@ -42,7 +42,11 @@ access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
 proc_name = "subscription-tracker"
 
 # Server mechanics
-preload_app = True
+# Load the app in the worker only, not in the master. With preload_app=True the
+# master keeps its own full copy of the app, and the forked worker's copy-on-write
+# pages get duplicated as soon as Python touches them (refcounts/GC). With a single
+# worker there is nothing to share, so preloading only costs ~15-20 MB extra RAM.
+preload_app = False
 daemon = False
 user = None
 group = None
@@ -54,13 +58,12 @@ tmp_upload_dir = None
 control_socket_disable = True
 
 
-def post_fork(server, worker):
+def post_worker_init(worker):
     """Start the APScheduler notification scheduler inside the worker process.
 
-    With preload_app=True the Flask app is loaded in the master process before
-    fork(). Background threads don't survive fork(), so starting the scheduler
-    here (in the worker) ensures it runs reliably on every container start
-    without waiting for the first authenticated HTTP request.
+    Runs after the worker has loaded the Flask app, so the scheduler starts
+    on every container start (and after every worker recycle) without waiting
+    for the first authenticated HTTP request.
     """
     try:
         from run import app
@@ -70,7 +73,7 @@ def post_fork(server, worker):
     except Exception as e:
         import logging
         logging.getLogger('gunicorn.error').warning(
-            f'Could not start notification scheduler in post_fork: {e}'
+            f'Could not start notification scheduler in post_worker_init: {e}'
         )
 
 
