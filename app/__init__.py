@@ -347,7 +347,7 @@ def create_app():
             db.engine.pool._timeout = 30  # 30 second timeout for database operations
 
         # Fallback: start scheduler here when running via `python run.py` (dev mode).
-        # Under gunicorn the post_fork hook handles this before any requests arrive.
+        # Under gunicorn the post_worker_init hook handles this before any requests arrive.
         if not getattr(app, '_scheduler_started', False) and not getattr(app, '_notification_scheduler', None):
             try:
                 from app.email import start_scheduler
