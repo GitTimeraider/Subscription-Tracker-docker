@@ -4,7 +4,7 @@
 </p>
 
 #### Disclaimer: 
-While guided and checked, AI is responsible for half of the coding. Development is also 100% for own personal use, if you want changes .. fork or copy it for your own use/development.
+While guided and checked, AI is responsible for half of the coding. Development is also 100% for own personal use. If you want personal changes, please fork or copy it for your own use/development.
 __________________________________
 
 Welcome to a comprehensive and dockerized way to track your subscriptions and recurring costs! This application helps you manage all your recurring payments, from streaming services to software licenses, ensuring you never fall down the rabbit hole of forgotten subscriptions.
