@@ -8,6 +8,7 @@ from app.forms import (LoginForm, SubscriptionForm, UserSettingsForm,
                       NotificationSettingsForm, GeneralSettingsForm, PaymentMethodForm,
                       AdminUserForm, AdminEditUserForm, WebhookForm)
 from app.currency import currency_converter
+from app.themes import ACCENT_COLORS, DEFAULT_ACCENT
 from datetime import datetime, timedelta, date
 import os
 
@@ -86,8 +87,8 @@ def sync_theme():
     # Validate values
     if theme_mode not in ['light', 'dark']:
         theme_mode = 'light'
-    if accent_color not in ['purple', 'blue', 'green', 'red']:
-        accent_color = 'purple'
+    if accent_color not in ACCENT_COLORS:
+        accent_color = DEFAULT_ACCENT
     
     # Update user settings
     if not current_user.settings:

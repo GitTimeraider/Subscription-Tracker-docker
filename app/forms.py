@@ -4,6 +4,7 @@ from wtforms.validators import DataRequired, Optional, Email, EqualTo, Length, N
 from flask_login import current_user
 from app.models import User, PaymentMethod
 from app.currency import currency_converter
+from app.themes import ACCENT_CHOICES
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -113,7 +114,7 @@ class GeneralSettingsForm(FlaskForm):
                            choices=[('light', 'Light Mode'), ('dark', 'Dark Mode')], 
                            validators=[DataRequired()])
     accent_color = SelectField('Accent Color',
-                             choices=[('blue', 'Blue'), ('purple', 'Purple'), ('green', 'Green'), ('red', 'Red')],
+                             choices=ACCENT_CHOICES,
                              validators=[DataRequired()])
     date_format = SelectField('Date Format',
                             choices=[('eu', 'European (DD/MM/YYYY)'), ('us', 'US (MM/DD/YYYY)')],

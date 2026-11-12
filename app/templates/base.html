@@ -43,40 +43,12 @@
     <style id="theme-style">
         :root {
             /* Accent Color Variables */
-            {% if current_user.is_authenticated %}
-                {% if accent_color == 'purple' %}
-                --primary-color: #6f42c1;
-                --primary-dark: #5a359a;
-                --primary-light: #8e63d4;
-                --primary-bright: #c4a8ff;
-                --primary-rgb: 111, 66, 193;
-                {% elif accent_color == 'blue' %}
-                --primary-color: #007bff;
-                --primary-dark: #0056b3;
-                --primary-light: #66b3ff;
-                --primary-bright: #7cbcff;
-                --primary-rgb: 0, 123, 255;
-                {% elif accent_color == 'green' %}
-                --primary-color: #28a745;
-                --primary-dark: #1e7e34;
-                --primary-light: #5cb85c;
-                --primary-bright: #6fdc8c;
-                --primary-rgb: 40, 167, 69;
-                {% elif accent_color == 'red' %}
-                --primary-color: #dc3545;
-                --primary-dark: #c82333;
-                --primary-light: #e67e22;
-                --primary-bright: #ff8a94;
-                --primary-rgb: 220, 53, 69;
-                {% endif %}
-            {% else %}
-                /* Default values - will be overridden by JavaScript */
-                --primary-color: #6f42c1;
-                --primary-dark: #5a359a;
-                --primary-light: #8e63d4;
-                --primary-bright: #c4a8ff;
-                --primary-rgb: 111, 66, 193;
-            {% endif %}
+            {% set accent = get_accent(accent_color) %}
+            --primary-color: {{ accent.primary }};
+            --primary-dark: {{ accent.dark }};
+            --primary-light: {{ accent.light }};
+            --primary-bright: {{ accent.bright }};
+            --primary-rgb: {{ accent.rgb }};
             
             /* Theme Mode Variables */
             {% if current_user.is_authenticated %}
@@ -658,12 +630,7 @@
             const root = document.documentElement;
             
             // Set accent color variables
-            const accentColors = {
-                'purple': { primary: '#6f42c1', dark: '#5a359a', light: '#8e63d4', bright: '#c4a8ff', rgb: '111, 66, 193' },
-                'blue': { primary: '#007bff', dark: '#0056b3', light: '#66b3ff', bright: '#7cbcff', rgb: '0, 123, 255' },
-                'green': { primary: '#28a745', dark: '#1e7e34', light: '#5cb85c', bright: '#6fdc8c', rgb: '40, 167, 69' },
-                'red': { primary: '#dc3545', dark: '#c82333', light: '#e67e22', bright: '#ff8a94', rgb: '220, 53, 69' }
-            };
+            const accentColors = {{ accent_colors | tojson }};
 
             const colors = accentColors[accent] || accentColors.purple;
             root.style.setProperty('--primary-color', colors.primary);

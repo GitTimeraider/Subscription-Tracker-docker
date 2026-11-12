@@ -244,6 +244,12 @@ def create_app():
             return ''
         return datetime_obj.strftime('%d/%m/%Y %H:%M:%S UTC')
 
+    @app.context_processor
+    def inject_accent_colors():
+        """Make the accent color palette available in all templates"""
+        from app.themes import ACCENT_COLORS, get_accent
+        return {'accent_colors': ACCENT_COLORS, 'get_accent': get_accent}
+
     # Add template context processor to make user date format available in templates
     @app.context_processor
     def inject_user_date_format():
