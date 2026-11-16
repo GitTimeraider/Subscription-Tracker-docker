@@ -7,7 +7,7 @@ WTForms==3.3.2
 python-dotenv==1.2.4
 email-validator==2.3.0
 APScheduler==3.11.3
-gunicorn==26.2.0
+gunicorn==27.0.1
 Werkzeug==3.1.9
 requests==2.34.2
 
